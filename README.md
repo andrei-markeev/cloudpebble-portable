@@ -1,15 +1,28 @@
 ## CloudPebble Portable
 
-Reimplementation of CloudPebble to run locally. Easy way to create, debug and package Pebble apps and watchfaces.
+Simplified reincarnation of CloudPebble. Create, debug and package Pebble apps and watchfaces.
 
-While you can make CloudPebble work on your local machine, but it is heavy and contains a lot of stuff that is not needed for local development. Also, it's always a challenge to build it.
+It doesn't have users, registration, authentication. Github integration removed. Files are picked up from the file system
+contextually, so you can edit only one Pebble app project at a time.
 
-This project attempts to make it as thin as possible. Bare minimum dependencies. Distributed as a single executable based on [redbean web server](https://redbean.dev).
+CloudPebble Portable is aiming to reduce amount of dependencies as much as possible. Some dependencies are removed.
+Remaining dependencies are packaged in. The application is distributed as a single executable based on [redbean web server](https://redbean.dev).
+
+### Status
+
+**Work in progress**. Not ready yet.
 
 ### Usage
 
-Download the `cloudpebble-portable.com` executable from Releases. Change directory to where your `appinfo.json` resides and run the executable from there. The browser will pop up, showing CloudPebble interface, and your files in there.
+Download the `cloudpebble-portable.com` executable from **Releases**. Change directory to where your `appinfo.json` resides and run the executable from there. The browser will pop up, showing CloudPebble interface, and your files in there.
 
 ### Development
 
-Make changes to source code and run `./build.sh` to build it. Resulting executable will be created in the `dist` folder.
+Download redbean server and zip tool from https://redbean.dev/ and put them into `base` folder.
+
+Run `./build.sh`. Resulting executable will be created in the `dist` folder.
+
+Put some Pebble watchapp or watchface files into the same folder and run.
+
+I usually do `./build.sh && cd dist && ./cloudpebble-portable.com && cd ..` so that it builds and starts the server right away.
+Then test it by navigating to `http://localhost:8080`. Then if we made some more changes and need to refresh, `Ctrl+D` and run same command again.
