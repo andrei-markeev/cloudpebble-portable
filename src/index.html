@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>CloudPebble Portable</title>
+        <link rel="stylesheet" type="text/css" href="/fonts/fonts.css">
+        <link rel="stylesheet" type="text/css" href="/css/progress.css">
+        <link rel="stylesheet" type="text/css" href="/css/common.css">
+        <link rel="icon" href="/img/favicon.png" />
+        <!--[if IE]>
+          <link rel="Shortcut Icon" href="/img/favicon.ico" />
+        <![endif]-->
+        <link rel="stylesheet" href="/ext/CodeMirror/addon/hint/show-hint.css">
+        <link rel="stylesheet" href="/ext/CodeMirror/addon/dialog/dialog.css">
+        <link rel="stylesheet" href="/ext/CodeMirror/lib/codemirror.css">
+        <link rel="stylesheet" href="/ext/CodeMirror/theme/monokai.css">
+        <link rel="stylesheet" href="/ext/CodeMirror/theme/eclipse.css">
+        <link rel="stylesheet" href="/ext/CodeMirror/theme/blackboard.css">
+        <link rel="stylesheet" href="/ext/CodeMirror/theme/solarized.css">
+        <link rel="stylesheet" href="/ext/CodeMirror/addon/fold/foldgutter.css">
+        <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Droid+Serif:700|Roboto+Condensed|Roboto:700">
+        <link rel="stylesheet" href="/css/raster-gothic.css">
+        
+        <link rel="stylesheet" href="/ext/jquery-textext/src/css/textext.core.css" type="text/css" />
+        <link rel="stylesheet" href="/ext/jquery-textext/src/css/textext.plugin.tags.css" type="text/css" />
+        <link rel="stylesheet" href="/ext/jquery-textext/src/css/textext.plugin.autocomplete.css" type="text/css" />
+        <link rel="stylesheet" href="/ext/jquery-textext/src/css/textext.plugin.focus.css" type="text/css" />
+        <link rel="stylesheet" href="/ext/jquery-textext/src/css/textext.plugin.prompt.css" type="text/css" />
+        <link rel="stylesheet" href="/ext/jquery-textext/src/css/textext.plugin.arrow.css" type="text/css" />
+        
+        <link rel="stylesheet" href="/css/ide.css">
+        <link rel="stylesheet" href="/css/ib.css">
+        <link rel="stylesheet" href="/css/codemirror-default.css">
+    </head>
+    <body>
+        <div class="main-container">
+            <div class="header">
+                <div class="container">
+                    <h1 class="cloudpebble-logo">
+                        <span class="cloudpebble-logo-cloud">Cloud</span><span class="cloudpebble-logo-pebble">Pebble</span>
+                        <span class="cloudpebble-logo-portable">Portable</span>
+                    </h1>
+                    <div class="header-right">
+                        <ul class="nav-pills">
+                            <li><a href="https://rebble.io" class="btn">Rebble</a></li>
+                            <li><a href="https://developer.rebble.io/" target="_blank" class="btn">Documentation</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="project-container">
+                <div class="row-fluid">
+                    <div id="sidebar-wrapper">
+                        <div>
+                            <div id="emulator-container">
+                                <canvas width="144" height="168"></canvas>
+                                <div class="up qemu-button"></div>
+                                <div class="down qemu-button"></div>
+                                <div class="back qemu-button"></div>
+                                <div class="select qemu-button"></div>
+                                <img src="/img/configure.png" class="configure">
+                            </div>
+                            <ul class="nav-list" id="sidebar">
+                                <li class="nav-header project-name"><!-- TODO: project name --></li>
+                                <li class="nav-header" id="sidebar-pane-settings"><a href="#">Settings</a></li>
+                                <li class="nav-header sdk3-only" id="sidebar-pane-timeline"><a href="#">Timeline</a></li>
+                                <li class="nav-header" id="sidebar-pane-compile"><a href="#">Compilation</a></li>
+                                <!-- TODO {% if project.project_type == 'package' or project.project_type == 'native' %} -->
+                                    <li class="nav-header sdk3-only" id="sidebar-pane-dependencies"><a href="#">Dependencies</a>
+                                        <span class="spinner spinner-dark hide"></span>
+                                    </li>
+                                <!-- {% endif %} -->
+                                <li class="nav-section">
+                                    <ul class="nav-list" id="sidebar-sources">
+            
+                                    </ul>
+                                </li>
+                                <!-- TODO {% if project.project_type != 'simplyjs' and project.project_type != 'rocky' %} -->
+                                <li class="nav-section">
+                                    <span class="nav-header">Resources</span>
+                                    <button class="btn btn-small" id="sidebar-pane-new-resource">Add new</button>
+                                    <ul class="nav-list" id="sidebar-resources">
+            
+                                    </ul>
+                                </li>
+                                <!-- {% endif %} -->
+                            </ul>
+                        </div>
+                    </div>
+                    <div id="pane-parent">
+                        <div id="main-pane" style="display: none;">
+                        </div>
+                        <div id="progress-pane">
+                            <div class="row-fluid">
+                                <div class="offset2 span8">
+                                    <div style="margin-top: 200px;">
+                                        <div class="progress progress-striped active">
+                                            <div class="bar" style="width: 100%;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="footer">
+                <div class="container">
+                    <p class="small-print">
+                        CloudPebble Portable was created by Andrei Markeev, heavily based on CloudPebble.
+                    </p>
+                    <div class="pebble-logo">
+                       <a href="http://rebble.io/" target="_blank"><img src="/img/pebble.png"></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- TODO {% include "ide/project/resource.html" %} -->
+        <!-- TODO {% include "ide/project/compile.html" %} -->
+        <!-- TODO {% include "ide/project/settings.html" %} -->
+        <!-- TODO {% include "ide/project/ui-editor.html" %} -->
+        <!-- TODO {% include "ide/project/timeline.html" %} -->
+        <!-- TODO {% include "ide/project/dependencies.html" %} -->
+        
+        <script src="/ext/jquery.min.js"></script>
+        <script src="/ext/underscore.min.js"></script>
+        <script src="/ext/backbone-min.js"></script>
+        <script src="/js/modal.js"></script>
+        <script src="/js/ajax.js"></script>
+
+        <!-- Create new file prompt -->
+        <div id="help-prompt-holder"></div>
+        <div id="editor-new-file-prompt" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Create new file</h3>
+            </div>
+            <form class="form-horizontal">
+                <div class="modal-body">
+                    <div class="alert alert-error hide"></div>
+                    <div class="control-group">
+                        <label class="control-label" for="new-file-type">File type</label>
+                        <div class="controls">
+                            <select id="new-file-type">
+                                <option value="c" selected>C file</option>
+                                <option value="js">JavaScript file</option>
+                                <option value="json">JSON file</option>
+                                <option value="layout">Window Layout</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="include-file-options file-group hide">
+                        <div class="control-group">
+                            <label class="control-label" for="new-include-file-name">Include Name</label>
+                            <div class="controls">
+                                <input type="text" id="new-include-file-name" pattern="[a-zA-Z0-9_-]+\.h$">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="c-file-options file-group">
+                        <div class="control-group">
+                            <label class="control-label" for="new-c-file-name">Filename</label>
+                            <div class="controls">
+                                <input type="text" id="new-c-file-name" pattern="[a-zA-Z0-9_-]+\.(c|h)$">
+                            </div>
+                        </div>
+                        <div class="control-group not-simplyjs not-pebblejs">
+                            <label class="control-label" for="new-c-target">Target</label>
+                            <div class="controls">
+                                <select id="new-c-target">
+                                    <option value="app" selected>
+                                        <!-- TODO {% if project.project_type == 'package' %}
+                                            {% trans 'Private source' %}
+                                        {% else %}-->
+                                            App / Watchface
+                                        <!-- {% endif %} -->
+                                    </option>
+                                    <option value="worker" class="native-only">Background worker</option>
+                                    <option value="public" class="package-only">Public header file</option>
+                                </select>
+                                <img src="/img/help.png" class="field-help">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="new-c-generate-h">Create header</label>
+                            <div class="controls">
+                                <input type="checkbox" id="new-c-generate-h">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="json-file-options file-group hide">
+                        <div class="control-group">
+                            <label class="control-label" for="new-json-file-name">Filename</label>
+                            <div class="controls">
+                                <input type="text" id="new-json-file-name" pattern="[a-zA-Z0-9_-]+\.json$">
+                            </div>
+                            <div class="control-group rocky-only">
+                                <label class="control-label" for="new-json-target">Target</label>
+                                <div class="controls">
+                                    <select id="new-json-target">
+                                        <option value="app" selected>RockyJS</option>
+                                        <option value="pkjs">PebbleKit JS</option>
+                                        <option value="common">Shared JSON</option>
+                                    </select>
+                                    <img src="/img/help.png" class="field-help">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="js-file-options file-group hide">
+                        <div class="control-group">
+                            <div id="js-file-name-option">
+                                <label class="control-label" for="new-js-file-name">Filename</label>
+                                <div class="controls">
+                                    <input type="text" id="new-js-file-name" pattern="[a-zA-Z0-9_\-]+\.js$">
+                                </div>
+                            </div>
+                            <div class="control-group rocky-only">
+                                <label class="control-label" for="new-js-target">Target</label>
+                                <div class="controls">
+                                    <select id="new-js-target">
+                                        <option value="app" selected>RockyJS</option>
+                                        <option value="pkjs">PebbleKit JS</option>
+                                        <option value="common">Shared JS</option>
+                                    </select>
+                                    <img src="/img/help.png" class="field-help">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="layout-file-options file-group hide">
+                        <div class="control-group">
+                            <label class="control-label" for="new-window-name">Window name</label>
+                            <div class="controls">
+                                <input type="text" id="new-window-name" pattern="^[a-z]([a-z0-9_]*[a-z0-9])?$">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="editor-create-file-button">Create</button>
+            </div>
+        </div>
+        <!-- Create new repo prompt -->
+        <div id="github-new-repo-prompt" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Create New Repo</h3>
+            </div>
+            <form class="form-horizontal" style="margin-bottom: 0px; padding-bottom: 0px;">
+            <div class="modal-body">
+                <div class="alert alert-warning">That repo does not exist. Would you like to create it?</div>
+                <div class="control-group">
+                    <label class="control-label" for="github-new-repo">Repo Name</label>
+                    <div class="controls">
+                        <div class="input-prepend">
+                            <span class="add-on">{{ project.owner.github.username }}/</span>
+                            <input type="text" id="github-new-repo">
+                        </div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="github-repo-description">Description <span class="muted">(optional)</span></label>
+                    <div class="controls">
+                        <input type="text" id="github-repo-description" class="span4">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal">Cancel</button>
+                <input type="submit" class="btn btn-primary" value="{% trans 'Create' %}">
+            </div>
+            </form>
+        </div>
+        <!-- Phone waiting -->
+        <div id="phone-waiting" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Waiting for phone</h3>
+            </div>
+            <div class="modal-body text-center">
+                <p class="pending">Please check your phone for notices from the Pebble app.</p>
+                <p class="error text-error"></p>
+        {#        <p><a href="#" id="phone-wait-retry">Retry</a></p>#}
+                <!--
+                <div class="progress progress-striped active">
+                    <div class="bar" style="width: 100%;"></div>
+                </div>
+                -->
+            </div>
+            <!--
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="btn hide dismiss-btn">Dismiss</button>
+                <button class="btn hide logs-btn btn-primary">View logs</button>
+            </div>
+            -->
+        </div>
+        <!-- Phone install progress -->
+        <div id="phone-install-progress" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Install App</h3>
+            </div>
+            <div class="modal-body">
+                <p>Installing app on your watch…</p>
+                <div class="progress progress-striped active">
+                    <div class="bar" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="btn hide dismiss-btn">Dismiss</button>
+                <button class="btn hide logs-btn btn-primary">View logs</button>
+            </div>
+        </div>
+        <!-- Phone screenshot -->
+        <div id="phone-screenshot-display" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Taking Screenshot</h3>
+            </div>
+            <div class="modal-body">
+                <p>Taking screenshot…</p>
+                <div class="progress progress-striped active">
+                    <div class="bar" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="btn hide dismiss-btn">Dismiss</button>
+            </div>
+        </div>
+        <!-- Command-P-->
+        <div id="fuzzy-prompt" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header padded-modal-header">
+                <input type="text" id="fuzzy-prompt-input-value" autocomplete="off" placeholder="Search">
+            </div>
+            <div class="modal-footer">
+                <div id="fuzzy-results">
+
+                </div>
+            </div>
+        </div>
+        <!-- Modal text prompt -->
+        <div id="modal-text-input" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3 id="modal-text-input-title">Modal header</h3>
+            </div>
+            <div class="modal-body">
+                <div id="modal-text-input-errors"></div>
+                <form class="form-horizontal">
+                    <div class="control-group">
+                        <label id="modal-text-input-prompt" for="modal-text-input-value">Modal text input prompt:</label>
+                        <div class="controls">
+                            <input type="text" id="modal-text-input-value">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="modal-text-confirm-button">Okay</button>
+            </div>
+        </div>
+        <!-- Modal boolean confirmation prompt -->
+        <div id="modal-warning-prompt" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3 id="modal-warning-prompt-title">Modal header</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modal-warning-prompt-warning">Modal warning</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger" id="modal-warning-prompt-button">Continue</button>
+            </div>
+        </div>
+        <!-- Modal link confirmation prompt -->
+        <div id="modal-confirm-link-prompt" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3 id="modal-confirm-link-prompt-title">Modal header</h3>
+            </div>
+            <div class="modal-body">
+                <p id="modal-confirm-link-prompt-warning">Modal warning</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal">Cancel</button>
+                <a class="btn btn-danger" id="modal-confirm-link-prompt-button">Continue</a>
+            </div>
+        </div>
+        <div id="export-progress" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Exporting…</h3>
+            </div>
+            <div class="modal-body text-center" id="export-progress-text">
+                <img src="/img/zip.png" style="height: 200px; width: 200px; margin-top: 10px;">
+                <div class="progress active">
+                    <div class="bar" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="" class="download-btn btn btn-primary" style="display: none;" data-dismiss="modal">Download</a>
+                <button class="btn" data-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+        <div id="generic-progress" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Doing a thing…</h3>
+            </div>
+            <div class="modal-body text-center" id="generic-progress-text">
+                <p></p>
+                <div class="progress progress-striped active">
+                    <div class="bar" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Android 2.1 beta download prompt -->
+        <div id="modal-android-notes" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Android App v2.1.0-beta9</h3>
+            </div>
+            <div class="modal-body">
+                <ul>
+                    <li>This version of the Pebble Android app has been rewritten from the ground up to be more reliable
+                        and give a better user experience.</li>
+                    <li>Notifications are now available from all apps. You should now disable Pebble Notifier or similar apps
+                        <ul>
+                            <li>The new <em>Notifications</em> menu includes an <em>All apps</em> option, where you can choose
+                                to receive notifications from any app on your device.</li>
+                            <li>Some popular apps are selected by default.</li>
+                            <li>Some apps in this list will be disabled if you have enabled built-in notifications (e.g. Gmail
+                                or calendar) to avoid generating duplicate notifications.</li>
+                        </ul>
+                    </li>
+                    <li>In-progress phone calls can now be ended from your watch.</li>
+                </ul>
+                <strong>Please note:</strong>
+                <ul>
+                    <li>This release is only supported on Android 4.3 and above.</li>
+                    <li>Developers: datalogging compatibility is broken in this release. You will need to use the updated
+                        PebbleKit 2.6 in order to use datalogging with this release.</li>
+                    <li>You will be asked to log in to your Pebble account again after installing this release.</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal">Dismiss</button>
+                <a href="https://www.dropbox.com/s/hjz0eoremh9m2gu/pebble-release-2.1.0-beta9-515.apk?dl=0" target="_blank" class="btn btn-primary">Download</a>
+            </div>
+        </div>
+        <!-- QEMU sensor prompt -->
+        <div id="qemu-sensor-prompt" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Compass and Accelerometer</h3>
+            </div>
+            <div class="modal-body">
+                <div>
+                    <p>You can use your mobile phone to send sensor data to the emulator.<br>
+                    In your mobile browser, go to<br><span class="cpbl-url">{{ url }}</span><br>and enter this code:</p>
+                    <p class="cpbl-token">…</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal">Okay</button>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            var PROJECT_ID = 1;
+            var USER_ID = 1;
+            // Create consistency with Python, which will dump in capitalised booleans here.
+            var True = true;
+            var False = false;
+            var USER_SETTINGS = { // TODO: save settings in localstorage, make UI for changing
+                theme: "monokai",
+                autocomplete: true,
+                keybinds: "",
+                use_spaces: true,
+                tab_width: 4,
+                token: "{{ token }}"
+            };
+            var DOC_JSON = "/data/documentation.json";
+            var REGEXES = {
+                // Match major[.minor], where major and minor are numbers between 0 and 255 with no leading 0s
+                sdk_version: /^(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5])(\.(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5]))?$/,
+
+                // Match x.y.z, each a number between 0 and 255 with no leading 0s
+                semver: /^(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5])\.(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5])\.(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5])$/,
+
+                // Match a string of letters and numbers separated with underscores but not starting with a digit
+                c_identifier: /^\w+$/,
+
+                // Match a C identifier optionally followed by an [array index]
+                c_identifier_with_index: /^(\w+)(?:\[(\d+)\])?$/,
+
+                // Match a UUID4
+                uuid: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
+
+                // Match a valid resource file name
+                resource_file_name: /^[/a-zA-Z0-9_(). -]+$/,
+
+                // Match a valid c/h/js file name
+                source_file_name: /^[/a-zA-Z0-9_.-]+\.(c|h|js|json)$/
+            };
+
+            // no localization for now
+            var gettext = function(t) { return t };
+            var pgettext = function(c, t) { return t };
+            var ga = function() {};
+            
+            </script>
+            <script src="/ext/CodeMirror/lib/codemirror.js"></script>
+            <script src="/ext/CodeMirror/addon/dialog/dialog.js"></script>
+            <script src="/ext/CodeMirror/addon/search/searchcursor.js"></script>
+            <script src="/ext/CodeMirror/addon/search/search.js"></script>
+            <script src="/ext/CodeMirror/addon/edit/matchbrackets.js"></script>
+            <script src="/ext/CodeMirror/addon/edit/closebrackets.js"></script>
+            <script src="/ext/CodeMirror/addon/comment/comment.js"></script>
+            <script src="/ext/CodeMirror/addon/fold/foldgutter.js"></script>
+            <script src="/ext/CodeMirror/addon/fold/foldcode.js"></script>
+            <script src="/ext/CodeMirror/addon/fold/brace-fold.js"></script>
+            <script src="/ext/CodeMirror/addon/fold/comment-fold.js"></script>
+            <script src="/ext/codemirror.hint.js"></script>
+            <script src="/ext/fuse.js"></script>
+            <script src="/ext/CodeMirror/mode/clike/clike.js"></script>
+            <script src="/ext/CodeMirror/mode/javascript/javascript.js"></script>
+            <script src="/ext/CodeMirror/keymap/emacs.js"></script>
+            <script src="/ext/CodeMirror/keymap/vim.js"></script>
+            <script src="/ext/uuid.js"></script>
+            <script src="/js/json_parse.js" type="text/javascript"></script>
+            <script src="/js/csrf.js" type="text/javascript"></script>
+            <script src="/js/cloudpebble.js" type="text/javascript"></script>
+            <script src="/js/sidebar.js" type="text/javascript"></script>
+            <script src="/js/radix.js" type="text/javascript"></script>
+            <script src="/js/ycm.js" type="text/javascript"></script>
+            <script src="/js/editor.js" type="text/javascript"></script>
+            <script src="/js/codefolds.js" type="text/javascript"></script>
+            <script src="/js/syntax.js" type="text/javascript"></script>
+            <script src="/js/autocomplete.js" type="text/javascript"></script>
+            <script src="/js/fuzzyprompt.js" type="text/javascript"></script>
+            <script src="/js/live_settings_form.js" type="text/javascript"></script>
+            <script src="/js/compile.js" type="text/javascript"></script>
+            <script src="/js/dependencies.js" type="text/javascript"></script>
+            <script src="/js/resources.js" type="text/javascript"></script>
+            <script src="/js/textext_tagger.js" type="text/javascript"></script>
+            <script src="/js/KVtable.js" type="text/javascript"></script>
+            <script src="/js/settings.js" type="text/javascript"></script>
+            <script src="/js/timeline.js" type="text/javascript"></script>
+            <script src="/js/libpebble/proxysocket.js" type="text/javascript"></script>
+            <script src="/js/libpebble/libpebble.js" type="text/javascript"></script>
+            <script src="/js/crash_handler.js" type="text/javascript"></script>
+            <script src="/js/pebble.js" type="text/javascript"></script>
+            <script src="/js/documentation.js" type="text/javascript"></script>
+            <script src="/js/qemu.js" type="text/javascript"></script>
+            <script src="/js/ib/ib.js" type="text/javascript"></script>
+            <script src="/js/ib/utils.js" type="text/javascript"></script>
+            <script src="/js/ib/properties.js" type="text/javascript"></script>
+            <script src="/js/ib/registry.js" type="text/javascript"></script>
+            <script src="/js/ib/resource_manager.js" type="text/javascript"></script>
+            <script src="/js/ib/resource.js" type="text/javascript"></script>
+            <script src="/js/ib/layer.js" type="text/javascript"></script>
+            <script src="/js/ib/canvas.js" type="text/javascript"></script>
+            <script src="/js/ib/resizer.js" type="text/javascript"></script>
+            <script src="/js/ib/layers/textlayer.js" type="text/javascript"></script>
+            <script src="/js/ib/layers/bitmaplayer.js" type="text/javascript"></script>
+            <script src="/js/ib/layers/actionbarlayer.js" type="text/javascript"></script>
+            <script src="/js/ib/layers/menulayer.js" type="text/javascript"></script>
+            <script src="/js/ib/layers/inverterlayer.js" type="text/javascript"></script>
+            <script src="/js/ib/toolkit.js" type="text/javascript"></script>
+            <script src="/js/ib/property_view.js" type="text/javascript"></script>
+            <script src="/js/ib/codegen.js" type="text/javascript"></script>
+            <script src="/js/ib/codeparser.js" type="text/javascript"></script>
+            <script src="/js/ib/layer_list.js" type="text/javascript"></script>
+            <script src="/js/emulator.js" type="text/javascript"></script>
+            <script src="/ext/jshint.js" type="text/javascript"></script>
+            <script src="/ext/html.sortable/dist/html.sortable.min.js" type="text/javascript"></script>
+            <script src="/ext/text-encoding/lib/encoding.js" type="text/javascript"></script>
+            <script src="/ext/noVNC/include/util.js" type="text/javascript"></script>
+            
+            <script type="text/javascript">
+            // Because there's apparently no good way to get these urls into javascript...
+            var URL_VNC_INCLUDES = ["/ext/noVNC/include/base64.js",
+                                    "/ext/noVNC/include/websock.js",
+                                    "/ext/noVNC/include/des.js",
+                                    "/ext/noVNC/include/keysymdef.js",
+                                    "/ext/noVNC/include/keyboard.js",
+                                    "/ext/noVNC/include/input.js",
+                                    "/ext/noVNC/include/display.js",
+                                    "/ext/noVNC/include/jsunzip.js",
+                                    "/ext/vnc/rfb.js",
+                                    "/ext/noVNC/include/keysym.js"];
+            var URL_BOOT_IMG = {
+                aplite: {url: "/img/boot-aplite.png", size: [144, 168]},
+                basalt: {url: "/img/boot-basalt.png", size: [144, 168]},
+                chalk: {url: "/img/boot-chalk.png", size: [180, 180]},
+                diorite: {url: "/img/boot-aplite.png", size: [144, 168]},
+                emery: {url: "/img/boot-emery.png", size: [200, 228]}
+            };
+            // TODO: Diorite - update image if needed
+            CloudPebble.Init();
+            </script>
+            
+            <script src="/ext/jquery-textext/src/js/textext.core.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/ext/jquery-textext/src/js/textext.plugin.tags.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/ext/jquery-textext/src/js/textext.plugin.autocomplete.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/ext/jquery-textext/src/js/textext.plugin.suggestions.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/ext/jquery-textext/src/js/textext.plugin.filter.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/ext/jquery-textext/src/js/textext.plugin.focus.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/ext/jquery-textext/src/js/textext.plugin.prompt.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/ext/jquery-textext/src/js/textext.plugin.ajax.js" type="text/javascript" charset="utf-8"></script>
+            <script src="/ext/jquery-textext/src/js/textext.plugin.arrow.js" type="text/javascript" charset="utf-8"></script>
+    </body>
+</html>

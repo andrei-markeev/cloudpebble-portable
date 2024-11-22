@@ -1,0 +1,8 @@
+@font-face {font-family: "Raster Gothic";
+    src: url("//db.onlinewebfonts.com/t/76ad379b63016de55f3d719916968042.eot");
+    src: url("//db.onlinewebfonts.com/t/76ad379b63016de55f3d719916968042.eot?#iefix") format("embedded-opentype"),
+    url("/static/common/fonts/raster-gothic.woff2") format("woff2"),
+    url("//db.onlinewebfonts.com/t/76ad379b63016de55f3d719916968042.woff") format("woff"),
+    url("//db.onlinewebfonts.com/t/76ad379b63016de55f3d719916968042.ttf") format("truetype"),
+    url("//db.onlinewebfonts.com/t/76ad379b63016de55f3d719916968042.svg#RasterGothicNineCond") format("svg");
+}
