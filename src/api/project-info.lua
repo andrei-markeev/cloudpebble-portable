@@ -51,13 +51,14 @@ function readdir (dir)
                 readdir(project_dir);
             elseif kind == unix.DT_REG then
 
+                local stat = assert(unix.fstat(fd));
                 local file_path = path.join(project_dir, name);
                 if project_dir == '.' then file_path = name end;
                 table.insert(files, {
                     name = name,
                     target = target,
-                    file_path = file_path
-                    -- TODO: lastModified = time.mktime(f.last_modified.utctimetuple())
+                    file_path = file_path,
+                    lastModified = stat:mtim()
                 });
             end
         end

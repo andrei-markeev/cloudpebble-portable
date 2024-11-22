@@ -1,6 +1,6 @@
 local file_name = GetParam('name');
 if file_name == '' or file_name == nil then
-    SetStatus(400)
+    ServeError(400)
     return;
 end
 
@@ -68,7 +68,7 @@ end
 unix.makedirs(project_dir);
 local file_path = project_dir .. '/' .. file_name;
 
-local fd, err = unix.open(file_path, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL);
+local fd, err = unix.open(file_path, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, 0664);
 if err ~= nil then
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')

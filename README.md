@@ -18,11 +18,11 @@ Download the `cloudpebble-portable.com` executable from **Releases**. Change dir
 
 ### Development
 
-Download redbean server and zip tool from https://redbean.dev/ and put them into `base` folder.
+Run `./init.sh` (one-time): it download redbean server and zip tool binaries from https://redbean.dev/ and puts them into `base` folder.
 
 Run `./build.sh`. Resulting executable will be created in the `dist` folder.
 
 Put some Pebble watchapp or watchface files into the same folder and run.
 
-I usually do `./build.sh && cd dist && ./cloudpebble-portable.com && cd ..` so that it builds and starts the server right away.
+After initial build, I usually do `cd dist` and then `../build.sh && ./cloudpebble-portable.com` from there.
 Then test it by navigating to `http://localhost:8080`. Then if we made some more changes and need to refresh, `Ctrl+D` and run same command again.

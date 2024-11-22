@@ -6,11 +6,13 @@ CloudPebble.Editor = (function() {
     var resume_fullscreen = false;
 
     var add_source_file = function(file) {
+        if (!file.id)
+            file.id = file.file_path.replace(/[\/\.]/g, '-');
         CloudPebble.Sidebar.AddSourceFile(file, function() {
             edit_source_file(file);
         });
 
-        project_source_files[file.file_path] = file;
+        project_source_files[file.id] = file;
     };
 
     var file_with_name_and_target_exists = function(name, target) {
@@ -59,13 +61,13 @@ CloudPebble.Editor = (function() {
             var new_file_path = response.file_path;
             open_codemirrors.find(m => m.file_path === file.file_path).file_path = new_file_path;
             //CloudPebble.YCM.renameFile(file.file_path, new_file_path);
-            delete project_source_files[file.file_path];
+            delete project_source_files[file.id];
             file.name = new_name;
             file.file_path = new_file_path;
             file.lastModified = response.modified;
             CloudPebble.Sidebar.SetItemName('source', file.id, new_name);
             CloudPebble.FuzzyPrompt.SetCurrentItemName(new_name);
-            project_source_files[file.file_path] = file;
+            project_source_files[file.id] = file;
             return null;
         });
     };
@@ -74,7 +76,7 @@ CloudPebble.Editor = (function() {
         CloudPebble.FuzzyPrompt.SetCurrentItemName(file.name);
         // See if we already had it open.
         CloudPebble.Sidebar.SuspendActive();
-        if(CloudPebble.Sidebar.Restore('source-'+file.id)) {
+        if (CloudPebble.Sidebar.Restore('source-' + file.id)) {
             if (resume_fullscreen) {
                 fullscreen(open_codemirrors[file.id], true);
             }
@@ -468,25 +470,21 @@ CloudPebble.Editor = (function() {
                 }
             }
 
-            var check_safe = function() {
-                return Ajax.Get('/ide/project/' + PROJECT_ID + '/source/' + file.id + '/is_safe?modified=' + file.lastModified).then(function(data) {
-                    if(!data.safe) {
-                        if(was_clean) {
-                            code_mirror.setOption('readOnly', true);
-                            return CloudPebble.Get('/ide/project/' + PROJECT_ID + '/source/' + file.id + '/load', function(data) {
-                                code_mirror.setValue(data.source);
-                                file.lastModified = data.modified;
-                                was_clean = true; // this will get reset to false by setValue.
-                            }).finally(function() {
-                                code_mirror.setOption('readOnly', false);
-                            });
-                        } else {
-                            alert(gettext("This file has been edited elsewhere; you will not be able to save your changes."));
-                        }
-                    }
-                }).catch(function(error) {
-                    alert(gettext(interpolate("Failed to reload file. %s", [error])));
-                });
+            var check_safe = function () {
+                // TODO
+                // the code below works, but we need to execute it only if we detected that file contents changed while we were editing
+                /*if (was_clean) {
+                    code_mirror.setOption('readOnly', true);
+                    return Ajax.Get('/api/load-source-file.lua?file_path=' + encodeURIComponent(file.file_path)).then(function (data) {
+                        code_mirror.setValue(data.source);
+                        file.lastModified = data.modified;
+                        was_clean = true; // this will get reset to false by setValue.
+                    }).catch(function (error) {
+                        alert(gettext(interpolate("Failed to reload file. %s", [error])));
+                    }).finally(function () {
+                        code_mirror.setOption('readOnly', false);
+                    });
+                }*/
             };
 
             CloudPebble.Sidebar.SetActivePane(pane, {
@@ -538,11 +536,12 @@ CloudPebble.Editor = (function() {
                 save_btn.prop('disabled', true);
                 delete_btn.prop('disabled', true);
 
-                return Ajax.Post("/ide/project/" + PROJECT_ID + "/source/" + file.id + "/save", {
-                    content: code_mirror.getValue(),
-                    modified: file.lastModified,
-                    folded_lines: JSON.stringify(code_mirror.get_folded_lines())
-                }).then(function(data) {
+                return Ajax.Ajax("/api/save-source-file.lua?file_path=" + file.file_path, {
+                    type: "POST",
+                    data: code_mirror.getValue(),
+                    processData: false,
+                    contentType: 'application/octet-stream'
+                }).then(function (data) {
                     file.lastModified = data.modified;
                     mark_clean();
                     ga('send', 'event' ,'file', 'save');
@@ -666,7 +665,7 @@ CloudPebble.Editor = (function() {
                     delete_btn.attr('disabled','disabled');
                     Ajax.Post("/ide/project/" + PROJECT_ID + "/source/" + file.id + "/delete").then(function(data) {
                         CloudPebble.Sidebar.DestroyActive();
-                        delete project_source_files[file.file_path];
+                        delete project_source_files[file.id];
                         CloudPebble.Sidebar.Remove('source-' + file.id);
                         return CloudPebble.YCM.deleteFile(file);
                     }).catch(alert).finally(function() {
