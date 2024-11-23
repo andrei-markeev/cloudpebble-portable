@@ -10,19 +10,19 @@ if err ~= nil then
     SetHeader('Content-Type', 'application/json; charset=utf-8')
     Write(EncodeJson({
         success=false,
-        error='Failed to open file! Error ' .. tostring(err)
+        error='Failed to open file! Error ' .. err:name() .. ' ' .. err:doc()
     }))
     return;
 end
 local file_contents = ''
 repeat
     local next_chunk, err = unix.read(fd);
-    if err then
+    if err ~= nil then
         SetStatus(200)
         SetHeader('Content-Type', 'application/json; charset=utf-8')
         Write(EncodeJson({
             success=false,
-            error='Reading from file ' .. file_path .. ' failed! Error ' .. tostring(err)
+            error='Reading from file ' .. file_path .. ' failed! Error ' .. err:name() .. ' ' .. err:doc()
         }))
         return;
     end

@@ -92,6 +92,6 @@ Write(EncodeJson({
     file={
         name=file_name,
         target=target,
-        file_path=project_dir
+        file_path=file_path
     }
 }))

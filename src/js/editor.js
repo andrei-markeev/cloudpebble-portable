@@ -53,13 +53,13 @@ CloudPebble.Editor = (function() {
         if (project_source_files[new_path]) {
             return Promise.reject(new Error(interpolate(gettext("A file of called '%s' of type '%s' already exists."), [new_name, CloudPebble.TargetNames[file.target]])));
         }
-        return Ajax.Post("/ide/project/" + PROJECT_ID + "/source/" + file.id + "/rename", {
+        return Ajax.Post("/api/rename-source-file.lua?file_path=" + file.file_path, {
             old_name: file.name,
             new_name: new_name,
             modified: file.lastModified
         }).then(function(response) {
             var new_file_path = response.file_path;
-            open_codemirrors.find(m => m.file_path === file.file_path).file_path = new_file_path;
+            open_codemirrors[file.id].file_path = new_file_path;
             //CloudPebble.YCM.renameFile(file.file_path, new_file_path);
             delete project_source_files[file.id];
             file.name = new_name;
@@ -471,20 +471,27 @@ CloudPebble.Editor = (function() {
             }
 
             var check_safe = function () {
-                // TODO
-                // the code below works, but we need to execute it only if we detected that file contents changed while we were editing
-                /*if (was_clean) {
-                    code_mirror.setOption('readOnly', true);
-                    return Ajax.Get('/api/load-source-file.lua?file_path=' + encodeURIComponent(file.file_path)).then(function (data) {
-                        code_mirror.setValue(data.source);
-                        file.lastModified = data.modified;
-                        was_clean = true; // this will get reset to false by setValue.
-                    }).catch(function (error) {
-                        alert(gettext(interpolate("Failed to reload file. %s", [error])));
-                    }).finally(function () {
-                        code_mirror.setOption('readOnly', false);
-                    });
-                }*/
+                return Ajax.Get('/api/check-safe.lua?file_path=' + file.file_path + '&modified=' + file.lastModified).then(function (data) {
+                    if (!data.safe) {
+                        if (was_clean) {
+                            code_mirror.setOption('readOnly', true);
+                            return Ajax.Get('/api/load-source-file.lua?file_path=' + encodeURIComponent(file.file_path)).then(function (data) {
+                                code_mirror.setValue(data.source);
+                                file.lastModified = data.modified;
+                                mark_clean(); // this will get reset to false by setValue.
+                            }).catch(function (error) {
+                                alert(gettext(interpolate("Failed to reload file. %s", [error])));
+                            }).finally(function () {
+                                code_mirror.setOption('readOnly', false);
+                            });
+                        } else {
+                            alert(gettext("This file has been edited elsewhere; if you save now, you will overwrite changes. Consider reloading file from disk."));
+                        }
+                    }
+                }).catch(function (error) {
+                    alert(gettext(interpolate("Failed to reload file. %s", [error])));
+                });
+
             };
 
             CloudPebble.Sidebar.SetActivePane(pane, {
@@ -663,7 +670,7 @@ CloudPebble.Editor = (function() {
                 CloudPebble.Prompts.Confirm(interpolate(fmt, file, true), gettext("This cannot be undone."), function() {
                     save_btn.attr('disabled','disabled');
                     delete_btn.attr('disabled','disabled');
-                    Ajax.Post("/ide/project/" + PROJECT_ID + "/source/" + file.id + "/delete").then(function(data) {
+                    Ajax.Post("/api/delete-source-file.lua?file_path=" + file.file_path).then(function (data) {
                         CloudPebble.Sidebar.DestroyActive();
                         delete project_source_files[file.id];
                         CloudPebble.Sidebar.Remove('source-' + file.id);
