@@ -56,6 +56,9 @@ CloudPebble.Init = function() {
     // Load in project data.
     Ajax.Get('/api/project-info.lua').then(function(data) {
         CloudPebble.ProjectInfo = data;
+        $('.project-name').text(data.name);
+        if (data.type == 'package')
+            $('#last-compilation-pbw').text('Get package')
 
         CloudPebble.ProjectProperties.Init();
         CloudPebble.Compile.Init();
@@ -196,8 +199,8 @@ CloudPebble.Prompts = {
 };
 
 CloudPebble.Utils = {
-    FormatDatetime: function(str) {
-        var date = new Date(Date.parse(str.replace(' ', 'T')));
+    FormatDatetime: function (s) {
+        var date = new Date(s);
         var months = [
             pgettext('month name', 'January'),
             pgettext('month name', 'February'),
@@ -223,7 +226,7 @@ CloudPebble.Utils = {
             ' – ' + hours + ":" + minutes;
     },
     FormatInterval: function(s1, s2) {
-        var t = Math.round(Math.abs(Date.parse(s2.replace(' ','T')) - Date.parse(s1.replace(' ','T'))) / 1000);
+        var t = Math.abs(s1 - s2);
         var n = t.toFixed(0);
         return interpolate(ngettext("%s second", "%s seconds", n), [n]);
     }

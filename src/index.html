@@ -137,8 +137,91 @@
         </div>
         <!-- / UI editor -->
 
+        <!-- Compilation pane -->
+        <div id="compilation-pane-template" class="hide compilation-pane">
+            <div id="last-compilation" class="hide">
+                <div class="hide well" id="run-on-phone">
+                    <form class="form-horizontal">
+                        <ul class="nav nav-tabs" id="run-target-tabs">
+                            <li class="active"><a href="#run-qemu" data-toggle="tab" data-run-target="qemu">Emulator</a></li>
+                            <li><a href="#run-device" data-toggle="tab" data-run-target="device">Phone</a></li>
+                        </ul>
+                        <div class="tab-content" id="run-target-content">
+                            <div id="run-device" class="tab-pane">
+                                <div class="control-group text-center">
+                                    <p>
+                                        Make sure that the Developer Connection is enabled on your phone, and you are
+                running at least phone app version 2.5 (iOS) or 2.1 (Android).
+                                    </p>
+                                </div>
+                                <hr>
+        
+                                <div class="compilation-buttons three-buttons">
+                                    <button class="btn btn-primary" id="install-on-phone-btn">Install and Run</button>
+                                    <button class="btn" id="show-app-logs-btn">View app logs</button>
+                                    <button class="btn" id="screenshot-btn">Screenshot</button>
+                                </div>
+                            </div>
+                            <div id="run-qemu" class="tab-pane active">
+                                <hr>
+                                <div class="compilation-buttons five-buttons">
+                                    <button class="btn btn-primary" id="install-in-qemu-aplite-btn" data-platform="aplite">Aplite</button>
+                                    <button class="btn btn-primary" id="install-in-qemu-basalt-btn" data-platform="basalt">Basalt</button>
+                                    <button class="btn btn-primary" id="install-in-qemu-chalk-btn" data-platform="chalk">Chalk</button>
+                                    <button class="btn btn-primary" id="install-in-qemu-diorite-btn" data-platform="diorite">Diorite</button>
+                                    <button class="btn btn-primary" id="install-in-qemu-emery-btn" data-platform="emery">Emery</button>
+                                </div>
+                                <hr>
+                                <div class="compilation-buttons two-buttons">
+                                    <button class="btn" id="show-qemu-logs-btn">View app logs</button>
+                                    <button class="btn" id="screenshot-qemu-btn">Screenshot</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div class="well">
+                <h3>Last build</h3>
+                <div class="hide" id="last-compilation-qr-code">
+                    <img src="">
+                </div>
+                <div class="build-stats">
+                    <p><label>Started:</label> <span id="last-compilation-started">April 17, 2013, 11:50 a.m.</span></p>
+                    <p id="last-compilation-time"><label>Build time:</label> <span>0.98 seconds</span></p>
+                    <p><label>Status:</label> <span id="last-compilation-status" class="label label-success">Successful</span></p>
+                    <p id="last-compilation-size-aplite" class="hide"><label>Aplite Size:</label> <span class="text"></span></p>
+                    <p id="last-compilation-size-basalt" class="hide"><label>Basalt Size:</label> <span class="text"></span></p>
+                    <p id="last-compilation-size-chalk" class="hide"><label>Chalk Size:</label> <span class="text"></span></p>
+                    <p id="last-compilation-size-diorite" class="hide"><label>Diorite Size:</label> <span class="text"></span></p>
+                    <p id="last-compilation-size-emery" class="hide"><label>Emery Size:</label> <span class="text"></span></p>
+                </div>
+                <hr>
+                <div class="compilation-buttons three-buttons">
+                    <button class="btn btn-affirmative" id="compilation-run-build-button">Run build</button>
+                    <a id="last-compilation-pbw" href="#" class="btn hide">
+                        Get PBW
+                    </a>
+                    <a id="last-compilation-log" class="btn hide" href="#">Build log</a>
+                </div>
+            </div>
+            <div class="well">
+                <table class="table build-results">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th colspan="2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="run-build-table">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
         <!-- TODO {% include "ide/project/resource.html" %} -->
-        <!-- TODO {% include "ide/project/compile.html" %} -->
         <!-- TODO {% include "ide/project/settings.html" %} -->
         <!-- TODO {% include "ide/project/timeline.html" %} -->
         <!-- TODO {% include "ide/project/dependencies.html" %} -->
@@ -190,7 +273,7 @@
                                 <select id="new-c-target">
                                     <option value="app" selected>
                                         <!-- TODO {% if project.project_type == 'package' %}
-                                            {% trans 'Private source' %}
+                                            Private source' %}
                                         {% else %}-->
                                             App / Watchface
                                         <!-- {% endif %} -->
@@ -289,7 +372,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn" data-dismiss="modal">Cancel</button>
-                <input type="submit" class="btn btn-primary" value="{% trans 'Create' %}">
+                <input type="submit" class="btn btn-primary" value="Create' %}">
             </div>
             </form>
         </div>

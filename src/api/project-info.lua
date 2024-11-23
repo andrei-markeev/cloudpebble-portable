@@ -28,7 +28,7 @@ local files = {};
 local target = 'app';
 function readdir (dir)
     for name, kind, ino, off in assert(unix.opendir(dir)) do
-        if name ~= '.' and name ~= '..' and name ~= 'appinfo.json' and name ~= 'cloudpebble-portable.com' then
+        if string.sub(name, 1, 1) ~= '.' and name ~= "appinfo.json" and name ~= 'cloudpebble-portable.com' then
             if kind == unix.DT_DIR then
                 if project_dir == '.' then
                     project_dir = name

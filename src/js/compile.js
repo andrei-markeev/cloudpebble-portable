@@ -85,7 +85,7 @@ CloudPebble.Compile = (function() {
 
     var update_build_history = function(pane) {
         var check = function() {
-            return Ajax.Get('/ide/project/' + PROJECT_ID + '/build/history').then(function(data) {
+            return Ajax.Get('/api/build-history.lua').then(function (data) {
                 CloudPebble.ProgressBar.Hide();
                 pane.removeClass('hide');
                 if (data.builds.length > 0) {
@@ -98,7 +98,7 @@ CloudPebble.Compile = (function() {
                     pane.find('#run-build-table').append(build_history_row(value));
                 });
                 if (data.builds.length > 0 && data.builds[0].state == 1) {
-                    return Promise.delay(1000).then(function () {
+                    return new Promise((r) => setTimeout(r, 2000)).then(function () {
                         return check();
                     });
                 } else
@@ -234,11 +234,11 @@ CloudPebble.Compile = (function() {
         var temp_build = {started: (new Date()).toISOString(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
         update_last_build(pane, temp_build);
         pane.find('#run-build-table').prepend(build_history_row(temp_build));
-        return Ajax.Post('/ide/project/' + PROJECT_ID + '/build/run').then(function() {
+        ga('send', 'event', 'build', 'run', { eventValue: ++m_build_count });
+        return Ajax.Post('/api/compile-project.lua').then(function () {
             mRunningBuild = true;
             return update_build_history(pane);
         });
-        ga('send','event', 'build', 'run', {eventValue: ++m_build_count});
     };
 
     var format_build_size = function(size, max_code, max_worker, max_resources) {
