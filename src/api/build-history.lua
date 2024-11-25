@@ -1,15 +1,10 @@
-local builds = {}
+---@type any
+local builds = Slurp('.pebble/builds/db.json')
 
-for row in DB:nrows("SELECT * FROM builds") do
-    if row.sizes ~= nil then
-        row.sizes = DecodeJson(row.sizes)
-    end
-    -- TODO: handle timestamp values
-    table.insert(builds, row)
-end
-
-if next(builds) == nil then
-    builds[0] = false
+if builds ~= nil then
+    builds = DecodeJson(builds)
+else
+    builds = {[0] = false}
 end
 
 SetStatus(200)

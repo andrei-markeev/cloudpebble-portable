@@ -23,37 +23,38 @@ if app_info == nil then
     return;
 end
 
-local project_dir = '';
 local files = {};
-local target = 'app';
-function readdir (dir)
+function readdir (dir, target)
     for name, kind, ino, off in assert(unix.opendir(dir)) do
-        if string.sub(name, 1, 1) ~= '.' and name ~= "appinfo.json" and name ~= 'cloudpebble-portable.com' then
+        if string.sub(name, 1, 1) ~= '.' and name ~= "appinfo.json" and name ~= 'cloudpebble-portable.com' and name ~= 'resources' then
             if kind == unix.DT_DIR then
-                if project_dir == '.' then
-                    project_dir = name
+                local child_dir = ''
+                local child_target = target
+
+                if dir == '.' then
+                    child_dir = name
                 else
-                    project_dir = path.join(project_dir, name)
+                    child_dir = path.join(dir, name)
                 end
 
-                if app_info.projectType == 'native' and project_dir == 'worker_src/c' then
-                    target = 'worker'
-                elseif project_dir == 'src/pkjs' then
-                    target = 'pkjs'
-                elseif app_info.projectType == 'rocky' and project_dir == 'src/common' then
-                    target = 'common'
-                elseif app_info.projectType == 'package' and project_dir == 'include' then
-                    target = 'public'
-                elseif app_info.projectType == 'package' and project_dir == 'src/js' then
-                    target = 'pkjs'
+                if app_info.projectType == 'native' and child_dir == 'worker_src/c' then
+                    child_target = 'worker'
+                elseif child_dir == 'src/pkjs' then
+                    child_target = 'pkjs'
+                elseif app_info.projectType == 'rocky' and child_dir == 'src/common' then
+                    child_target = 'common'
+                elseif app_info.projectType == 'package' and child_dir == 'include' then
+                    child_target = 'public'
+                elseif app_info.projectType == 'package' and child_dir == 'src/js' then
+                    child_target = 'pkjs'
                 end
 
-                readdir(project_dir);
+                readdir(child_dir, child_target);
             elseif kind == unix.DT_REG then
 
                 local stat = assert(unix.fstat(fd));
-                local file_path = path.join(project_dir, name);
-                if project_dir == '.' then file_path = name end;
+                local file_path = path.join(dir, name);
+                if dir == '.' then file_path = name end;
                 table.insert(files, {
                     name = name,
                     target = target,
@@ -65,7 +66,7 @@ function readdir (dir)
     end
 end
 
-readdir(".");
+readdir(".", "app");
 
 SetStatus(200)
 SetHeader('Content-Type', 'application/json; charset=utf-8')

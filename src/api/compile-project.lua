@@ -1,69 +1,113 @@
--- compile in a separate process
-if assert(unix.fork()) == 0 then
-    -- child process
-    local pbw_file_name = 'build_' .. GetTime() .. '.pbw';
-    Log(kLogWarn, 'child')
+local host_os = GetHostOs();
+if host_os ~= 'WINDOWS' then
+    SetStatus(400)
+    SetHeader('Content-Type', 'application/json; charset=utf-8')
+    Write(EncodeJson({
+        success = false,
+        error = 'Compilation on ' .. host_os .. ' is not supported yet!'
+    }))
+end
 
-    -- local pbwdb = Sqlite3.open_memory()
-    -- local stmt = pbwdb:prepare("CREATE VIRTUAL TABLE pbw USING zipfile(?)")
-    -- stmt:bind(1, pbw_file_name)
-    -- stmt:finalize()
+local build_uuid = UuidV4();
 
-    -- -- TODO: compile files and add them
-    -- stmt = pbwdb:prepare("INSERT INTO pbw(name, data) VALUES(?, ?)")
-    -- stmt:bind_values('test.txt', 'Hello world!')
-    -- stmt:step()
-    -- stmt:finalize()
+local build_db_filename = '.pebble/builds/db.json';
+---@type any
+local builds = Slurp(build_db_filename)
 
+local lastId = 0
+if builds ~= nil then
+    builds = assert(DecodeJson(builds))
+    lastId = builds[1].id
 else
-    -- parent process, return response
-    local result = DB:exec("INSERT INTO builds(state, started) VALUES(1, " .. tostring(math.floor(GetTime())) .. ")")
-    if result ~= Sqlite3.OK then
-        SetStatus(200)
-        SetHeader('Content-Type', 'application/json; charset=utf-8')
-        Write(EncodeJson({
-            success = false,
-            error = 'Insert failed: ' .. tostring(result)
-        }))
-        return;
-    end
+    builds = {}
+end
 
--- id = build.id,
--- uuid = build.uuid,
--- state = build.state,
-    -- 1 = Pending
-    -- 2 = Failed
-    -- 3 = Succeeded
--- started = str(build.started),
--- finished = str(build.finished) if build.finished else None,
--- download = build.pbw_url,
--- log = build.build_log_url,
--- build_dir = build.get_url(),
--- sizes = build.get_sizes()
+assert(unix.makedirs('.pebble/builds'))
 
--- "aplite": {
---     "app": 17374,
---     "resources": 11643,
---     "total": null,
---     "worker": null
---   },
---   "basalt": {
---     "app": 17806,
---     "resources": 10356,
---     "total": null,
---     "worker": null
---   },
---   "chalk": {
---     "app": 18078,
---     "resources": 10356,
---     "total": null,
---     "worker": null
---   }
+local current_build = { id = lastId + 1, uuid = build_uuid, state = 1, started = math.floor(GetTime() * 1000) };
+table.insert(builds, 1, current_build)
+if #builds > 10 then
+    table.remove(builds, #builds)
+end
+assert(Barf(build_db_filename, EncodeJson(builds)))
+
+local build_log = '.pebble/builds/' .. build_uuid .. '.log';
+
+-- TODO:
+-- create .pebble/pebblesdk-container if needed
+-- and update .pebble/pebblesdk-container/rootfs/pebble/app
+-- (for now done via script)
+
+if assert(unix.fork()) ~= 0 then
 
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')
     Write(EncodeJson({
         success = true
     }))
-end
+    return
+else
 
+    if host_os == 'WINDOWS' then
+
+        local wsl_path = '/C/WINDOWS/system32/wsl.exe';
+        local _, err = unix.stat(wsl_path);
+        if err ~= nil then
+            Log(kLogWarn, 'Fatal error: WSL not detected at ' .. wsl_path .. '! ' .. err:name() .. ' ' .. err:doc());
+            Barf(build_log, 'Fatal error: WSL not detected at ! ' .. err:name() .. ' ' .. err:doc() .. '\n')
+            current_build.state = 2
+            current_build.finished = math.floor(GetTime() * 1000)
+            assert(Barf(build_db_filename, EncodeJson(builds)))
+            return
+        end
+
+        if assert(unix.fork()) == 0 then
+
+            Log(kLogWarn, 'in exec child process');
+
+            local fd = unix.open(build_log, unix.O_WRONLY | unix.O_CREAT, 0644)
+            unix.dup(fd, 1)
+            unix.dup(fd, 2)
+            unix.close(fd)
+
+            local _, err = unix.execve(wsl_path, {
+                wsl_path,
+                '--user', 'root',
+                '--',
+                'chroot', '.pebble/pebblesdk-container/rootfs', 'sh', '-c', 'pebble/compile_app.sh'
+            })
+
+            if err ~= nil then
+                print('Fatal error: failed to execute WSL command: ' .. err:name() .. ' ' .. err:doc())
+                current_build.state = 2
+                current_build.finished = math.floor(GetTime() * 1000)
+                assert(Barf(build_db_filename, EncodeJson(builds)))
+                return
+            end
+
+            unix.exit(127)
+        else
+            Log(kLogWarn, 'waiting for subprocess')
+            assert(unix.wait())
+            Log(kLogWarn, 'done waiting')
+            assert(unix.rename('.pebble/pebblesdk-container/rootfs/pebble/assembled/build/assembled.pbw', '.pebble/builds/' .. build_uuid .. '.pbw'))
+            ---@type any
+            local appinfo = assert(DecodeJson(Slurp('appinfo.json')))
+            local sizeInfo = {}
+            for _, p in ipairs(appinfo.targetPlatforms) do
+                local app_stat = assert(unix.stat('.pebble/pebblesdk-container/rootfs/pebble/assembled/build/' .. p .. '/pebble-app.bin'))
+                local res_stat = assert(unix.stat('.pebble/pebblesdk-container/rootfs/pebble/assembled/build/' .. p .. '/app_resources.pbpack'))
+                sizeInfo[p] = { app = app_stat:size(), resources = res_stat:size() }
+            end
+            Log(kLogWarn, 'files copied')
+            assert(unix.rmrf('.pebble/pebblesdk-container/rootfs/pebble/assembled'))
+            Log(kLogWarn, 'build dir removed')
+            current_build.state = 3
+            current_build.finished = math.floor(GetTime() * 1000)
+            current_build.sizes = sizeInfo
+            assert(Barf(build_db_filename, EncodeJson(builds)))
+            Log(kLogWarn, 'db updated')
+        end
+    end
+
+end

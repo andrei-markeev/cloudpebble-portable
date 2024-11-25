@@ -226,7 +226,7 @@ CloudPebble.Utils = {
             ' – ' + hours + ":" + minutes;
     },
     FormatInterval: function(s1, s2) {
-        var t = Math.abs(s1 - s2);
+        var t = Math.abs(s1 - s2) / 1000;
         var n = t.toFixed(0);
         return interpolate(ngettext("%s second", "%s seconds", n), [n]);
     }

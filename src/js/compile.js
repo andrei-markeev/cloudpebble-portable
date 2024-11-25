@@ -21,20 +21,20 @@ CloudPebble.Compile = (function() {
         var pbw_badge = $('<td class="build-pbw">').appendTo(tr);
         if (build.state == 3) {
             pbw_badge.append($('<a class="btn btn-small">')
-                .attr('href', build.download)
+                .attr('href', '/api/download-pbw.lua?uuid=' + build.uuid)
                 .text(CloudPebble.ProjectProperties.is_runnable ? gettext("pbw") : gettext("tar.gz")));
         }
 
         // Build log thingy.
         var td = $('<td class="build-log">');
         if(build.state > 1) {
-            var a = $('<a href="'+build.log+'" class="btn btn-small">' + gettext("Build log") + '</a>').click(function(e) {
+            var a = $('<a href="#" class="btn btn-small">' + gettext("Build log") + '</a>').click(function(e) {
                 if(e.ctrlKey || e.metaKey) {
                     ga('send', 'event', 'build log', 'show', 'external');
                     return true;
                 }
                 e.preventDefault();
-                show_build_log(build.id);
+                show_build_log(build.uuid);
                 ga('send', 'event', 'build log', 'show', 'in-app');
             });
             td.append(a);
@@ -44,8 +44,8 @@ CloudPebble.Compile = (function() {
         return tr;
     };
 
-    var show_build_log = function(build) {
-        return Ajax.Get('/ide/project/' + PROJECT_ID + '/build/' + build + '/log').then(function(data){
+    var show_build_log = function(build_uuid) {
+        return Ajax.Get('/api/build-log.lua?uuid=' + build_uuid).then(function(data){
             CloudPebble.Sidebar.SuspendActive();
             // Sanitise the HTML.
             var log = data.log.replace('&', '&amp;').replace('<', '&lt;');
@@ -98,7 +98,7 @@ CloudPebble.Compile = (function() {
                     pane.find('#run-build-table').append(build_history_row(value));
                 });
                 if (data.builds.length > 0 && data.builds[0].state == 1) {
-                    return new Promise((r) => setTimeout(r, 2000)).then(function () {
+                    return new Promise((r) => setTimeout(r, 3000)).then(function () {
                         return check();
                     });
                 } else
@@ -231,7 +231,7 @@ CloudPebble.Compile = (function() {
     };
 
     var run_build = function() {
-        var temp_build = {started: (new Date()).toISOString(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
+        var temp_build = {started: Date.now(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
         update_last_build(pane, temp_build);
         pane.find('#run-build-table').prepend(build_history_row(temp_build));
         ga('send', 'event', 'build', 'run', { eventValue: ++m_build_count });
@@ -249,7 +249,7 @@ CloudPebble.Compile = (function() {
             sfmt = gettext("%(total)s KiB (%(resources)s\u2008/\u2008%(resource_limit)s KiB resources, %(appbin)s\u2008/\u2008%(appbin_limit)s KiB binary, %(workerbin)s\u2008/\u2008%(workerbin_limit)s KiB worker)");
         }
         return interpolate(sfmt, {
-            total: Math.round((size.resources + size.app + size.worker) / 1024),
+            total: Math.round((size.resources + size.app + (size.worker || 0)) / 1024),
             resources: Math.round(size.resources / 1024),
             appbin: Math.round(size.app / 1024),
             workerbin: Math.round(size.worker / 1024),
@@ -275,12 +275,12 @@ CloudPebble.Compile = (function() {
                         return true;
                     }
                     e.preventDefault();
-                    show_build_log(build.id);
+                    show_build_log(build.uuid);
                     ga('send', 'event', 'build log', 'show', 'in-app');
                 });
                 pane.find('#compilation-run-build-button').removeAttr('disabled');
                 if(build.state == 3) {
-                    pane.find('#last-compilation-pbw').removeClass('hide').attr('href', build.download);
+                    pane.find('#last-compilation-pbw').removeClass('hide').attr('href', '/api/download-pbw.lua?uuid=' + build.uuid);
                     pane.find("#run-on-phone").removeClass('hide');
                     if(build.sizes) {
                         if(build.sizes.aplite) {
