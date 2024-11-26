@@ -1,53 +1,14 @@
----@alias AppInfo {
-    ---projectType: 'native' | 'rocky' | 'package' | 'pebblejs' | 'simplyjs',
-    ---name: string,
-    ---last_modified: number,
-    ---uuid: string,
-    ---companyName: string,
-    ---shortName: string,
-    ---longName: string,
-    ---versionLabel: string,
-    ---watchapp: { watchface: boolean, hiddenApp: boolean },
-    ---capabilities: string[],
-    ---sdkVersion: string,
-    ---targetPlatforms: ('aplite' | 'basalt' | 'chalk' | 'diorite' | 'emery')[],
-    ---app_modern_multi_js: boolean,
-    ---menu_icon: string | nil,
-    ---resources: {media: any} | nil}
+local ProjectFiles = require('ProjectFiles')
 
-
-local appinfo_filename = 'appinfo.json'
-local file_contents = Slurp(appinfo_filename)
-if file_contents == nil then
-
-    appinfo_filename = 'package.json'
-    file_contents = Slurp(appinfo_filename, unix.O_RDONLY)
-
-    if file_contents == nil then
-        SetStatus(200)
-        SetHeader('Content-Type', 'application/json; charset=utf-8')
-        Write(EncodeJson({
-            success=false,
-            error='Neither appinfo.json nor package.json found in the working directory!'
-        }))
-        return;
-    end
-end;
-
----@type AppInfo
-local app_info, err = DecodeJson(file_contents)--[[@as any]];
+local app_info, err = ProjectFiles.getAppInfo();
 if app_info == nil then
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')
     Write(EncodeJson({
         success=false,
-        error=appinfo_filename .. ' contains incorrect json: ' .. err
+        error='Failed to load application manifest: ' .. err
     }))
     return;
-end
-
-if appinfo_filename == 'package.json' then
-    app_info = app_info--[[@as any]].pebble
 end
 
 local tag_map = {
@@ -92,16 +53,13 @@ end
 local files = {};
 local resource_variants = {};
 ---@param dir string
----@param target 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public'
----@param type 'file' | 'resource'
-local function readdir (dir, target, type)
+---@param target 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource'
+local function readdir (dir, target)
     for name, kind in assert(unix.opendir(dir)) do
         if string.sub(name, 1, 1) ~= '.' then
             if kind == unix.DT_DIR then
 
                 local child_dir = ''
-                local child_target = target
-                local child_type = type
 
                 if dir == '.' then
                     child_dir = name
@@ -109,71 +67,18 @@ local function readdir (dir, target, type)
                     child_dir = path.join(dir, name)
                 end
 
-                if app_info.projectType == 'package' and child_dir == 'src/resources' then
-                    child_type = 'resource'
-                elseif app_info.projectType ~= 'package' and child_dir == 'resources' then
-                    child_type = 'resource'
+                local child_target = ProjectFiles.getFileTarget(app_info, dir);
+                if child_target == nil then
+                    child_target = target
                 end
 
-                if app_info.projectType == 'native' then
-                    if child_dir == 'src' then
-                        child_target = 'app'
-                    elseif child_dir == 'src/pkjs' or child_dir == 'src/js' then
-                        child_target = 'pkjs'
-                    elseif child_dir == 'worker_src/c' then
-                        child_target = 'worker'
-                    end
-                elseif app_info.projectType == 'simplyjs' and child_dir == 'src/js' then
-                    child_target = 'app'
-                elseif app_info.projectType == 'pebblejs' and child_dir == 'src' then
-                    child_target = 'app'
-                elseif app_info.projectType == 'rocky' then
-                    if child_dir == 'src/rocky' then
-                        child_target = 'app'
-                    elseif child_dir == 'src/pkjs' then
-                        child_target = 'pkjs'
-                    elseif child_dir == 'src/common' then
-                        child_target = 'common'
-                    end
-                elseif app_info.projectType == 'package' then
-                    if child_dir == 'src/c' then
-                        child_target = 'app'
-                    elseif child_dir == 'src/js' then
-                        child_target = 'pkjs'
-                    elseif child_dir == 'include' then
-                        child_target = 'public'
-                    end
-                end
-
-                readdir(child_dir, child_target, child_type);
+                readdir(child_dir, child_target);
 
             elseif kind == unix.DT_REG then
 
                 local file_path = path.join(dir, name);
 
-                if type == 'file' then
-
-                    local is_js_target = target == 'pkjs' or target == 'common'
-                    local is_js_project = app_info.projectType == 'pebblejs' or app_info.projectType == 'simplyjs' or app_info.projectType == 'rocky'
-                    local is_valid_file
-                    if is_js_project or is_js_target then
-                        is_valid_file = string.sub(name, -3) == '.js' or string.sub(name, -5) == '.json'
-                    else
-                        is_valid_file = string.sub(name, -2) == '.c' or string.sub(name, -2) == '.h'
-                    end
-
-                    if is_valid_file then
-                        local stat = assert(unix.stat(file_path));
-                        if dir == '.' then file_path = name end;
-                        table.insert(files, {
-                            name = name,
-                            target = target,
-                            file_path = file_path,
-                            lastModified = stat:mtim()
-                        });
-                    end
-
-                elseif type == 'resource' then
+                if target == 'resource' then
 
                     if string.find(name, '~', 1, true) ~= nil then
                         local root_file_name, tag_ids_or_err = find_tags(name);
@@ -192,14 +97,27 @@ local function readdir (dir, target, type)
                         end
                         table.insert(resource_variants[root_file_name], tag_ids_or_err);
                     end
-        
+
+                elseif target ~= 'unknown' then
+
+                    if ProjectFiles.isValidExtension(app_info, target, name) then
+                        local stat = assert(unix.stat(file_path));
+                        if dir == '.' then file_path = name end;
+                        table.insert(files, {
+                            name = name,
+                            target = target,
+                            file_path = file_path,
+                            lastModified = stat:mtim()
+                        });
+                    end
+       
                 end
             end
         end
     end
 end
 
-readdir(".", "unknown", "file");
+readdir(".", "unknown");
 
 local resources = {}
 if app_info.resources ~= nil and app_info.resources.media ~= nil then
@@ -265,7 +183,7 @@ Write(EncodeJson({
     -- 'interdependencies': [p.id for p in project.project_dependencies.all()],
     sdk_version = app_info.sdkVersion,
     app_platforms = app_info.targetPlatforms,
-    app_modern_multi_js = app_info.app_modern_multi_js,
+    app_modern_multi_js = app_info.enableMultiJS,
     -- TODO
     -- 'menu_icon': project.menu_icon.id if project.menu_icon else None,
     source_files = files,

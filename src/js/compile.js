@@ -12,6 +12,7 @@ CloudPebble.Compile = (function() {
     var mRunningBuild = false;
     var mLastScrollTop = 'bottom';
     var mLastBuild = null;
+    var mLastBuildLogModified = null;
 
     var build_history_row = function(build) {
         var tr = $('<tr>');
@@ -27,7 +28,7 @@ CloudPebble.Compile = (function() {
 
         // Build log thingy.
         var td = $('<td class="build-log">');
-        if(build.state > 1) {
+        //if(build.state > 1) {
             var a = $('<a href="#" class="btn btn-small">' + gettext("Build log") + '</a>').click(function(e) {
                 if(e.ctrlKey || e.metaKey) {
                     ga('send', 'event', 'build log', 'show', 'external');
@@ -38,7 +39,7 @@ CloudPebble.Compile = (function() {
                 ga('send', 'event', 'build log', 'show', 'in-app');
             });
             td.append(a);
-        }
+        //}
         tr.append(td);
         tr.addClass(COMPILE_SUCCESS_STATES[build.state].cls);
         return tr;
@@ -46,6 +47,8 @@ CloudPebble.Compile = (function() {
 
     var show_build_log = function(build_uuid) {
         return Ajax.Get('/api/build-log.lua?uuid=' + build_uuid).then(function(data){
+            mLastBuildLogModified = data.modified;
+
             CloudPebble.Sidebar.SuspendActive();
             // Sanitise the HTML.
             var log = data.log.replace('&', '&amp;').replace('<', '&lt;');
@@ -73,11 +76,17 @@ CloudPebble.Compile = (function() {
                 CloudPebble.Editor.GoTo({file_path: filename}, line - 1, 0);
             });
 
-            CloudPebble.Sidebar.SetActivePane(log);
+            CloudPebble.Sidebar.SetActivePane(log, {
+                id: 'build-log-' + build_uuid
+            });
             // Scroll to the first error, if any.
-            setTimeout(function() { if(log.find('.log-error').length) {
-                log.scrollTop($(log.find('.log-error')[0]).offset().top - log.offset().top + log.scrollTop());
-            }}, 1);
+            setTimeout(function() {
+                if(log.find('.log-error').length) {
+                    log.scrollTop($(log.find('.log-error')[0]).offset().top - log.offset().top + log.scrollTop());
+                } else {
+                    log.scrollTop(log[0].scrollHeight);
+                }
+            }, 1);
         }).catch(function(err) {
             alert(interpolate(gettext("Something went wrong:\n\n%s"), [err.message]));
         });
@@ -97,14 +106,18 @@ CloudPebble.Compile = (function() {
                 $.each(data.builds, function (index, value) {
                     pane.find('#run-build-table').append(build_history_row(value));
                 });
+
+                if (mRunningBuild && mLastBuildLogModified < data.modified) {
+                    if (document.querySelector('pre.build-log') != null) {
+                        show_build_log(mLastBuild.uuid);
+                    }
+                }
+
                 if (data.builds.length > 0 && data.builds[0].state == 1) {
                     return new Promise((r) => setTimeout(r, 3000)).then(function () {
                         return check();
                     });
-                } else
-
-
-                if (mRunningBuild) {
+                } else if (mRunningBuild) {
                     mRunningBuild = false;
                     return (data.builds[0].state == 3)
                 }
@@ -182,7 +195,7 @@ CloudPebble.Compile = (function() {
         var commands = {};
         commands[gettext("Show Phone Logs")] = function() { show_app_logs(ConnectionType.Phone); };
         commands[gettext("Show Emulator Logs")] = function() { show_app_logs(ConnectionType.Qemu); };
-        commands[gettext("Show Last Build Log")] = function() {show_build_log(mLastBuild.id)};
+        commands[gettext("Show Last Build Log")] = function() {show_build_log(mLastBuild.uuid)};
         commands[gettext("Compilation")] = function() { show_compile_pane();};
         commands[gettext("Clear App Logs")] = function() { show_clear_logs_prompt(); };
         commands[gettext("Take Screenshot")] = function() { take_screenshot(); };
@@ -231,13 +244,18 @@ CloudPebble.Compile = (function() {
     };
 
     var run_build = function() {
-        var temp_build = {started: Date.now(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
-        update_last_build(pane, temp_build);
-        pane.find('#run-build-table').prepend(build_history_row(temp_build));
+        CloudPebble.Prompts.Progress.Show(gettext("Build starting..."));
         ga('send', 'event', 'build', 'run', { eventValue: ++m_build_count });
-        return Ajax.Post('/api/compile-project.lua').then(function () {
+        return Ajax.Post('/api/compile-project.lua').then(function (data) {
+            CloudPebble.Prompts.Progress.Hide();
+            var temp_build = {started: Date.now(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
+            update_last_build(pane, temp_build);
+            pane.find('#run-build-table').prepend(build_history_row(temp_build));
             mRunningBuild = true;
             return update_build_history(pane);
+        }).catch(function(err) {
+            CloudPebble.Prompts.Progress.Update(err.toString());
+            CloudPebble.Prompts.Progress.Fail();
         });
     };
 
@@ -264,23 +282,24 @@ CloudPebble.Compile = (function() {
         if(build === null) {
             pane.find('#last-compilation, .build-stats').addClass('hide');
             pane.find('#compilation-run-build-button').removeAttr('disabled');
+            pane.find('#last-compilation-log').addClass('invisible');
         } else {
             pane.find('#last-compilation, .build-stats').removeClass('hide');
             pane.find('#last-compilation-started').text(CloudPebble.Utils.FormatDatetime(build.started));
+            pane.find('#last-compilation-log').removeClass('invisible').off('click').click(function(e) {
+                if(e.ctrlKey || e.metaKey) {
+                    ga('send', 'event', 'build log', 'show', 'external');
+                    return true;
+                }
+                e.preventDefault();
+                show_build_log(build.uuid);
+                ga('send', 'event', 'build log', 'show', 'in-app');
+            });
             if(build.state > 1) {
                 pane.find('#last-compilation-time').removeClass('hide').find('span').text(CloudPebble.Utils.FormatInterval(build.started, build.finished));
-                pane.find('#last-compilation-log').removeClass('hide').attr('href', build.log).off('click').click(function(e) {
-                    if(e.ctrlKey || e.metaKey) {
-                        ga('send', 'event', 'build log', 'show', 'external');
-                        return true;
-                    }
-                    e.preventDefault();
-                    show_build_log(build.uuid);
-                    ga('send', 'event', 'build log', 'show', 'in-app');
-                });
                 pane.find('#compilation-run-build-button').removeAttr('disabled');
                 if(build.state == 3) {
-                    pane.find('#last-compilation-pbw').removeClass('hide').attr('href', '/api/download-pbw.lua?uuid=' + build.uuid);
+                    pane.find('#last-compilation-pbw').removeClass('invisible').attr('href', '/api/download-pbw.lua?uuid=' + build.uuid);
                     pane.find("#run-on-phone").removeClass('hide');
                     if(build.sizes) {
                         if(build.sizes.aplite) {
@@ -322,7 +341,6 @@ CloudPebble.Compile = (function() {
                 }
             } else {
                 pane.find('#last-compilation-time').addClass('hide');
-                pane.find('#last-compilation-log').addClass('hide');
                 pane.find('#compilation-run-build-button').attr('disabled', 'disabled');
                 pane.find('#last-compilation-size-aplite').addClass('hide');
                 pane.find('#last-compilation-size-basalt').addClass('hide');
@@ -333,7 +351,7 @@ CloudPebble.Compile = (function() {
                 pane.find('#last-compilation-worker-memory').addClass('hide');
             }
             if(build.state != 3) {
-                pane.find('#last-compilation-pbw').addClass('hide');
+                pane.find('#last-compilation-pbw').addClass('invisible');
                 pane.find('#last-compilation-qr-code').addClass('hide');
                 pane.find('#run-on-phone').addClass('hide');
             }

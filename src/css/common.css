@@ -208,6 +208,9 @@ a.btn-small {
 .hide {
     display: none;
 }
+.invisible {
+    visibility: hidden;
+}
 
 ul.nav-pills {
     margin: 0;

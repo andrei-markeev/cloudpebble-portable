@@ -9,4 +9,4 @@ rm dist/cloudpebble-portable.com || true
 
 cp base/redbean-3.0.0.com dist/cloudpebble-portable.com
 cd src
-../base/zip -r ../dist/cloudpebble-portable.com .init.lua *
+../base/zip -r ../dist/cloudpebble-portable.com .init.lua .lua *
