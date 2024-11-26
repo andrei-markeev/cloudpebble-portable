@@ -59,6 +59,8 @@ CloudPebble.Init = function() {
         $('.project-name').text(data.name);
         if (data.type == 'package')
             $('#last-compilation-pbw').text('Get package')
+        if (data.type === 'simplyjs' || data.type === 'rocky')
+            $('#resources-section').hide();
 
         CloudPebble.ProjectProperties.Init();
         CloudPebble.Compile.Init();

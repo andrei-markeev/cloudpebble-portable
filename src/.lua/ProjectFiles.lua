@@ -10,6 +10,8 @@ local ProjectFiles = {}
     ---longName: string,
     ---versionLabel: string,
     ---watchapp: { watchface: boolean, hiddenApp: boolean },
+    ---appKeys: string,
+    ---parsed_app_keys: [string, number][], 
     ---capabilities: string[],
     ---sdkVersion: string,
     ---targetPlatforms: ('aplite' | 'basalt' | 'chalk' | 'diorite' | 'emery')[],
@@ -31,9 +33,28 @@ function ProjectFiles.getAppInfo()
         return nil, 'Neither appinfo.json nor package.json found in the working directory!'
     end
 
-    local app_info, err = DecodeJson(file_contents)--[[@as any]];
-    if appinfo_filename == 'package.json' and app_info ~= nil then
-        app_info = app_info--[[@as any]].pebble
+    ---@type AppInfo
+    local app_info;
+
+    local file_object--[[@type { name: string, author: string, pebble: any } ]], err = DecodeJson(file_contents)--[[@as any]];
+    if file_object ~= nil then
+        if appinfo_filename == 'package.json' then
+            if file_object.pebble == nil then
+                return nil, 'package.json has invalid format (field "pebble" not found)!'
+            end
+            app_info = file_object.pebble
+            app_info.shortName = file_object.name
+            app_info.companyName = file_object.author
+            app_info.longName = file_object.pebble.displayName
+            app_info.parsed_app_keys = file_object.pebble.messageKeys
+        else
+            app_info = file_object--[[@as any]]
+            app_info.parsed_app_keys = app_info.appKeys
+        end
+    end
+
+    if app_info.parsed_app_keys then
+        app_info.appKeys = EncodeJson(app_info.parsed_app_keys, { pretty = true })--[[@as string]]
     end
    
     return app_info, err

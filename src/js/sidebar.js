@@ -164,9 +164,13 @@ CloudPebble.Sidebar = (function() {
         Init: function() {
             $('#sidebar-pane-new-resource').click(CloudPebble.Resources.Create);
             $('#sidebar-pane-compile > a').click(CloudPebble.Compile.Show);
-            $('#sidebar-pane-dependencies > a').click(CloudPebble.Dependencies.Show);
+            if (CloudPebble.ProjectInfo.type.project_type !== 'package'
+                && CloudPebble.ProjectInfo.type.project_type !== 'native')
+            {
+                $('sidebar-pane-dependencies').hide();
+            } else
+                $('#sidebar-pane-dependencies > a').click(CloudPebble.Dependencies.Show);
             $('#sidebar-pane-settings > a').click(CloudPebble.Settings.Show);
-            //$('#sidebar-pane-github > a').click(CloudPebble.GitHub.Show);
             $('#sidebar-pane-timeline > a').click(CloudPebble.Timeline.show);
             create_initial_sections(CloudPebble.ProjectInfo.type);
         },

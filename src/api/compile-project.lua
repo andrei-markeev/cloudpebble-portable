@@ -8,11 +8,12 @@ if host_os ~= 'WINDOWS' then
         success = false,
         error = 'Compilation on ' .. host_os .. ' is not supported yet!'
     }))
+    return
 end
 
 local app_info = assert(ProjectFiles.getAppInfo())
 
-if unix.stat('.pebble/pebblesdk-container/rootfs/pebble/compile_' .. app_info.projectType .. '.sh') == nil then
+if not path.exists('.pebble/pebblesdk-container/rootfs/pebble/compile_' .. app_info.projectType .. '.sh') then
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')
     Write(EncodeJson({
@@ -52,7 +53,7 @@ local function fail_build_if_err(val, err)
         current_build.state = 2
         current_build.finished = math.floor(GetTime() * 1000)
         assert(Barf(build_db_filename, EncodeJson(builds)))
-        if unix.stat(build_log) == nil then
+        if not path.exists(build_log) then
             Barf(build_log, err);
         else
             Barf(build_log, Slurp(build_log) .. '\n' .. err);
@@ -67,7 +68,7 @@ end
 -- (for now done in compile.sh)
 
 local container_app_dir = '.pebble/pebblesdk-container/rootfs/pebble/app';
-if unix.stat(container_app_dir) ~= nil then
+if path.exists(container_app_dir) then
     fail_build_if_err(unix.rmrf(container_app_dir));
 end
 fail_build_if_err(unix.mkdir(container_app_dir));
@@ -87,10 +88,9 @@ else
     if host_os == 'WINDOWS' then
 
         local wsl_path = '/C/WINDOWS/system32/wsl.exe';
-        local _, err = unix.stat(wsl_path);
-        if err ~= nil then
-            Log(kLogError, 'Fatal error: WSL not detected at ' .. wsl_path .. '! ' .. err:name() .. ' ' .. err:doc());
-            assert(Barf(build_log, 'Fatal error: WSL not detected at ' .. wsl_path .. '! ' .. err:name() .. ' ' .. err:doc() .. '\n'))
+        if not path.exists(wsl_path) then
+            Log(kLogError, 'Fatal error: WSL not found at ' .. wsl_path .. '!');
+            assert(Barf(build_log, 'Fatal error: WSL not found at ' .. wsl_path .. '!\n'))
             current_build.state = 2
             current_build.finished = math.floor(GetTime() * 1000)
             assert(Barf(build_db_filename, EncodeJson(builds)))

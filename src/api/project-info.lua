@@ -158,13 +158,22 @@ if app_info.resources ~= nil and app_info.resources.media ~= nil then
     end
 end
 
+local supported_platforms = { 'aplite' }
+if app_info.sdkVersion ~= '2' then
+    table.insert(supported_platforms, "basalt")
+    table.insert(supported_platforms, "chalk")
+    if app_info.projectType ~= 'pebblejs' then
+        table.insert(supported_platforms, "diorite")
+        table.insert(supported_platforms, "emery")
+    end
+end
+
 SetStatus(200)
 SetHeader('Content-Type', 'application/json; charset=utf-8')
 Write(EncodeJson({
     success=true,
     type=app_info.projectType,
     name=app_info.shortName,
-    -- TODO 'last_modified': str(project.last_modified),
     app_uuid = app_info.uuid,
     app_company_name = app_info.companyName,
     app_short_name = app_info.shortName,
@@ -172,9 +181,9 @@ Write(EncodeJson({
     app_version_label = app_info.versionLabel,
     app_is_watchface = app_info.watchapp.watchface,
     app_is_hidden = app_info.watchapp.hiddenApp,
+    app_keys = app_info.appKeys,
+    parsed_app_keys = app_info.parsed_app_keys,
     -- TODO
-    -- app_keys: app_info.appKeys,
-    -- parsed_app_keys: ?,
     -- 'app_is_shown_on_communication': project.app_is_shown_on_communication,
     app_capabilities = app_info.capabilities,
     -- TODO
@@ -188,7 +197,5 @@ Write(EncodeJson({
     -- 'menu_icon': project.menu_icon.id if project.menu_icon else None,
     source_files = files,
     resources = resources,
-    -- TODO is it different from targetPlatforms?
-    -- 'supported_platforms': project.supported_platforms
-
+    supported_platforms = supported_platforms
 }))

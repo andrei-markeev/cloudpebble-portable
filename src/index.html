@@ -59,29 +59,25 @@
                                 <img src="/img/configure.png" class="configure">
                             </div>
                             <ul class="nav-list" id="sidebar">
-                                <li class="nav-header project-name"><!-- TODO: project name --></li>
+                                <li class="nav-header project-name"><!-- project name --></li>
                                 <li class="nav-header" id="sidebar-pane-settings"><a href="#">Settings</a></li>
                                 <li class="nav-header sdk3-only" id="sidebar-pane-timeline"><a href="#">Timeline</a></li>
                                 <li class="nav-header" id="sidebar-pane-compile"><a href="#">Compilation</a></li>
-                                <!-- TODO {% if project.project_type == 'package' or project.project_type == 'native' %} -->
-                                    <li class="nav-header sdk3-only" id="sidebar-pane-dependencies"><a href="#">Dependencies</a>
-                                        <span class="spinner spinner-dark hide"></span>
-                                    </li>
-                                <!-- {% endif %} -->
+                                <li class="nav-header sdk3-only" id="sidebar-pane-dependencies"><a href="#">Dependencies</a>
+                                    <span class="spinner spinner-dark hide"></span>
+                                </li>
                                 <li class="nav-section">
                                     <ul class="nav-list" id="sidebar-sources">
             
                                     </ul>
                                 </li>
-                                <!-- TODO {% if project.project_type != 'simplyjs' and project.project_type != 'rocky' %} -->
-                                <li class="nav-section">
+                                <li id="resources-section" class="nav-section">
                                     <span class="nav-header">Resources</span>
                                     <button class="btn btn-small" id="sidebar-pane-new-resource">Add new</button>
                                     <ul class="nav-list" id="sidebar-resources">
             
                                     </ul>
                                 </li>
-                                <!-- {% endif %} -->
                             </ul>
                         </div>
                     </div>
@@ -105,7 +101,6 @@
             <div class="footer">
                 <div class="container">
                     <p class="small-print">
-                        CloudPebble Portable was created by Andrei Markeev, heavily based on CloudPebble.
                     </p>
                     <div class="pebble-logo">
                        <a href="http://rebble.io/" target="_blank"><img src="/img/pebble.png"></a>
@@ -333,7 +328,6 @@
                                 <div class="edit-resource-targets">
                                     <div class="edit-resource-target-options">
                                         <br/>
-                                    <!-- TODO -->
                                         <div class="control-group">
                                             <label class="control-label" for="edit-resource-target-aplite">Aplite</label>
                                             <input type="checkbox" class="edit-resource-target-aplite">
@@ -971,7 +965,6 @@
                 diorite: {url: "/img/boot-aplite.png", size: [144, 168]},
                 emery: {url: "/img/boot-emery.png", size: [200, 228]}
             };
-            // TODO: Diorite - update image if needed
             CloudPebble.Init();
             </script>
             
