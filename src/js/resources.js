@@ -487,316 +487,317 @@ CloudPebble.Resources = (function() {
         ga('send', 'event', 'resource', 'open');
 
         CloudPebble.ProgressBar.Show();
-        Ajax.Get("/ide/project/" + PROJECT_ID + "/resource/" + resource.id + "/info").then(function(data) {
-            var resource = data.resource;
-            var pane = prepare_resource_pane();
+        // TODO
+        resource.resource_ids = resource.identifiers.map(identifier => ({
+            id: identifier
+        }));
 
-            var list_entry = $('#sidebar-pane-resource-' + resource.id);
-            if(list_entry) {
-                list_entry.addClass('active');
-            }
+        var pane = prepare_resource_pane();
 
-            CloudPebble.Sidebar.SetActivePane(pane, {
-                id: 'resource-' + resource.id,
-                onRestore: _.partial(restore_pane, pane)
-            });
-            pane.find('#edit-resource-type').val(resource.kind).attr('disabled', 'disabled');
-            pane.find('#edit-resource-type').change();
+        var list_entry = $('#sidebar-pane-resource-' + resource.id);
+        if(list_entry) {
+            list_entry.addClass('active');
+        }
 
-            var save = function(e) {
-                if (e) e.preventDefault();
-                process_resource_form(form, false, resource.file_name, "/ide/project/" + PROJECT_ID + "/resource/" + resource.id + "/update").then(function(data) {
-                    delete project_resources[resource.file_name];
-                    // Update our information about the resource.
-                    update_resource(data);
-                    resource = project_resources[data.file_name];
+        CloudPebble.Sidebar.SetActivePane(pane, {
+            id: 'resource-' + resource.id,
+            onRestore: _.partial(restore_pane, pane)
+        });
+        pane.find('#edit-resource-type').val(resource.kind).attr('disabled', 'disabled');
+        pane.find('#edit-resource-type').change();
 
-                    // Set the resource's sidebar name
-                    generate_resource_previews(resource.kind);
-                    CloudPebble.Sidebar.SetItemName('resource', data.id, data.file_name);
+        var save = function(e) {
+            if (e) e.preventDefault();
+            process_resource_form(form, false, resource.file_name, "/ide/project/" + PROJECT_ID + "/resource/" + resource.id + "/update").then(function(data) {
+                delete project_resources[resource.file_name];
+                // Update our information about the resource.
+                update_resource(data);
+                resource = project_resources[data.file_name];
 
-                    if(resource.kind == 'font') {
-                        resource.family = null;
-                        $.each(pane.find('.resource-id-group-single'), function(index, group) {
-                            update_font_preview($(group));
-                        });
-                    }
+                // Set the resource's sidebar name
+                generate_resource_previews(resource.kind);
+                CloudPebble.Sidebar.SetItemName('resource', data.id, data.file_name);
 
-                    // Clear and disable the upload-file form
-                    pane.find('#edit-resource-new-file input').val('');
-                    pane.find('#edit-resource-new-file textarea').textext()[0].tags().empty().core().enabled(false);
-                    pane.find('#edit-resource-new-file').toggleClass('file-present', false);
-                    CloudPebble.Sidebar.ClearIcon('resource-'+resource.id);
-                    live_form.clearIcons();
-
-                    // Only show the delete-identifiers button if there is more than one ID.
-                    pane.find('.btn-delidentifier').toggle(resource.resource_ids.length > 1);
-                }).catch(function() {/* ignore failure */});;
-            };
-
-            // Generate a preview.
-
-            var generate_resource_previews = function(kind) {
-                var previews = pane.find('#edit-resource-previews');
-                previews.empty();
-                _.each(resource.variants, function (tags) {
-                    var variant_string;
-                    var template_name;
-                    if (tags.length == 0) {
-                        variant_string = '0';
-                    }
-                    else {
-                        variant_string = tags.join(',');
-                    }
-                    switch (kind) {
-                        case 'bitmap':
-                        case 'png':
-                        case 'png-trans':
-                        case 'pbi':
-                            template_name = 'image';
-                            break;
-                        case 'raw':
-                        case 'font':
-                            template_name = 'raw';
-                            break;
-                    }
-
-                    // Add a cache-breaking query string to the end of the URL to ensure the image reloads
-                    var preview_url = '/ide/project/' + PROJECT_ID + '/resource/' + resource.id + '/' + variant_string + '/get?'+new Date().getTime();
-                    var preview_pane = pane.find('#edit-'+template_name+'-resource-preview-template > div').clone();
-                    preview_pane.appendTo(previews).hide();
-
-                    if (template_name == 'image') {
-                        var preview_img = preview_pane.find('.image-resource-preview img');
-                        preview_img.attr('src', preview_url);
-                        var dimensions = preview_pane.find('.image-resource-preview-dimensions');
-                        preview_pane.show();
-                        build_tags_editor(pane, preview_pane.find('.resource-tags'), tags) ;
-
-                        preview_img.load(function () {
-                            dimensions.text(this.naturalWidth + ' x ' + this.naturalHeight);
-                        }).error(function() {
-                            dimensions.text("Image failed to load");
-                        });
-                    }
-                    if (template_name == 'raw') {
-                        preview_pane.find('.resource-download-link').removeClass('hide').find('a').attr('href', preview_url);
-                        preview_pane.show();
-                        build_tags_editor(pane, preview_pane.find('.resource-tags'), tags) ;
-                    }
-
-                    preview_pane.find('.btn-delvariant').click(function() {
-                        CloudPebble.Prompts.Confirm(gettext("Do you want to delete this resource variant?"), gettext("This cannot be undone."), function () {
-                            pane.find('input, button, select').attr('disabled', true);
-
-                            Ajax.Post('/ide/project/' + PROJECT_ID + '/resource/' + resource.id + '/' + variant_string + '/delete').then(function (data) {
-                                // Regenerate all the previews from scratch.
-                                // It's the easiest way.
-                                resource.variants = data.resource.variants;
-                                project_resources[resource.file_name].variants = resource.variants;
-                                generate_resource_previews(resource.kind);
-                                ga('send', 'event', 'resource', 'delete')
-                            }).catch(function(error) {
-                                alert(error.toString())
-                            }).finally(function() {
-                                pane.find('input, button, select').removeAttr('disabled');
-                            });
-                        });
+                if(resource.kind == 'font') {
+                    resource.family = null;
+                    $.each(pane.find('.resource-id-group-single'), function(index, group) {
+                        update_font_preview($(group));
                     });
-                });
-                if (CloudPebble.ProjectInfo.sdk_version == '2' && resource.variants.length > 0) {
-                    pane.find('#edit-resource-new-file').hide();
-                }
-                // Only show the delete-variant buttons if there's more than one variant
-                pane.find('.btn-delvariant').toggle(resource.variants.length > 1);
-            };
-
-            generate_resource_previews(resource.kind);
-
-            var update_font_preview = function(group) {
-                group.find('.font-preview').remove();
-                var regex_str = group.find('.edit-resource-regex').val();
-                var id_str = group.find('.edit-resource-id').val();
-                var preview_regex = new RegExp('');
-                try {
-                    preview_regex = new RegExp(regex_str ? regex_str : '.', 'g');
-                    group.find('.font-resource-regex-group').removeClass('error').find('.help-block').text(gettext("A PCRE regular expression that restricts characters."));
-                } catch (e) {
-                    group.find('.font-resource-regex-group').addClass('error').find('.help-block').text(e);
-                }
-                var tracking = parseInt(group.find('.edit-resource-tracking').val(), 10) || 0;
-
-                _.each(resource.variants, function (tags) {
-                    var row = $('<div class="control-group font-preview"><label class="control-label">' + gettext('Preview') + '</label>');
-                    var preview_holder = $('<div class="controls">');
-                    var font_tag_preview = $('<div class="font-tag-preview">').appendTo(preview_holder).text(gettext("For ") + (
-                        _.chain(tags)
-                            .map(get_tag_data_for_id)
-                            .pluck('name').value()
-                            .join(', ')
-                        || gettext("untagged")) + gettext(" file")
-                    );
-                    var preview = $('<div>').appendTo(preview_holder);
-                    var line = ('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!@#$%^& *()_+[]{}\\|;:\'"<>?`'.match(preview_regex) || []).join('');
-                    var font_size = id_str.match(/[0-9]+$/)[0];
-
-                    preview.text(line);
-                    // Officially, a CSS pixel is defined as one pixel at 96 dpi.
-                    // 96 / PEBBLE_PPI should thus be correct.
-                    // We use 'transform' to work around https://bugs.webkit.org/show_bug.cgi?id=20606
-                    preview.css({
-                        'font-family': CloudPebble.Resources.GetFontFamily(resource, tags),
-                        'font-size': font_size + 'px',
-                        'line-height': font_size + 'px',
-                        'letter-spacing': tracking + 'px',
-                        'transform': 'scale(' + (96 / PEBBLE_PPI) + ')',
-                        'transform-origin': '0 0',
-                        'display': 'inline-block',
-                        'border': (2 * (PEBBLE_PPI / 96)) + 'px solid #767676',
-                        'padding': '5px',
-                        'border-radius': '5px',
-                        'background-color': 'white',
-                        'color': 'black',
-                        'word-wrap': 'break-word',
-                        'width': 'calc(100% * 1/0.547945)'
-                    });
-                    // The parent element doesn't take the CSS transform in to account when calculating its own height
-                    // based on it children, so there is a large gap left underneath.
-                    // We fix this calculating the height of the preview's empty space and subtracting it from the
-                    // parent element's margin.
-                    _.defer(function() {
-                        preview_holder.css({
-                            'margin-bottom': (60 - (preview.height() * (1 - 96/PEBBLE_PPI))) +'px'
-                        })
-                    });
-
-                    row.append(preview_holder);
-                    group.append(row);
-                });
-            };
-
-            var initialise_resource_id_group = function(group, resource) {
-                group.find('.btn-delidentifier').click(function() {
-                    CloudPebble.Prompts.Confirm(gettext("Do you want to this resource identifier?"), gettext("This cannot be undone."), function () {
-                        group.remove();
-                        CloudPebble.Sidebar.SetIcon('resource-'+resource.id, 'edit');
-                        save();
-                    });
-                });
-            };
-
-            var template = pane.find('.resource-id-group-single').detach();
-            var parent = $('#resource-id-group').removeClass('hide');
-            $.each(resource.resource_ids, function(index, value) {
-                var group = template.clone();
-                group.removeClass('hide').attr('id','');
-                group.find('.edit-resource-id').val(value.id);
-                if (resource.kind == 'font') {
-                    group.find('.edit-resource-regex').val(value.regex);
-                    group.find('.edit-resource-tracking').val(value.tracking || '0');
-                    group.find('.font-compat-option').val(value.compatibility || "");
-                    update_font_preview(group);
-                    group.find('input[type=text], input[type=number]').on('input', function() {
-                        update_font_preview(group);
-                    });
-                    group.find('.non-font-only').remove();
-                } else {
-                    group.find('.font-only').remove();
                 }
 
-                if (resource.kind == 'bitmap') {
-                    group.find('.bitmap-memory-format-option').val(value.memory_format|| "");
-                    group.find('.bitmap-storage-format-option').val(value.storage_format || "");
-                    group.find('.bitmap-space-optimisation-option').val(value.space_optimisation || "");
+                // Clear and disable the upload-file form
+                pane.find('#edit-resource-new-file input').val('');
+                pane.find('#edit-resource-new-file textarea').textext()[0].tags().empty().core().enabled(false);
+                pane.find('#edit-resource-new-file').toggleClass('file-present', false);
+                CloudPebble.Sidebar.ClearIcon('resource-'+resource.id);
+                live_form.clearIcons();
+
+                // Only show the delete-identifiers button if there is more than one ID.
+                pane.find('.btn-delidentifier').toggle(resource.resource_ids.length > 1);
+            }).catch(function() {/* ignore failure */});;
+        };
+
+        // Generate a preview.
+
+        var generate_resource_previews = function(kind) {
+            var previews = pane.find('#edit-resource-previews');
+            previews.empty();
+            _.each(resource.variants, function (tags) {
+                var variant_string;
+                var template_name;
+                if (tags.length == 0) {
+                    variant_string = '0';
                 }
                 else {
-                    group.find('.bitmap-only').remove()
+                    variant_string = tags.join(',');
+                }
+                switch (kind) {
+                    case 'bitmap':
+                    case 'png':
+                    case 'png-trans':
+                    case 'pbi':
+                        template_name = 'image';
+                        break;
+                    case 'raw':
+                    case 'font':
+                        template_name = 'raw';
+                        break;
                 }
 
-                var has_target_platforms = _.isArray(value["target_platforms"]);
-                if (has_target_platforms) {
-                    var target_platforms_checkbox = group.find(".edit-resource-target-platforms-enabled");
-                    target_platforms_checkbox.prop('checked', true);
-                    _.each(_.keys(PLATFORMS), function(platform) {
-                        group.find(".edit-resource-target-"+platform).prop('checked', _.contains(value["target_platforms"], platform));
+                // Add a cache-breaking query string to the end of the URL to ensure the image reloads
+                var preview_url = '/ide/project/' + PROJECT_ID + '/resource/' + resource.id + '/' + variant_string + '/get?'+new Date().getTime();
+                var preview_pane = pane.find('#edit-'+template_name+'-resource-preview-template > div').clone();
+                preview_pane.appendTo(previews).hide();
+
+                if (template_name == 'image') {
+                    var preview_img = preview_pane.find('.image-resource-preview img');
+                    preview_img.attr('src', preview_url);
+                    var dimensions = preview_pane.find('.image-resource-preview-dimensions');
+                    preview_pane.show();
+                    build_tags_editor(pane, preview_pane.find('.resource-tags'), tags) ;
+
+                    preview_img.load(function () {
+                        dimensions.text(this.naturalWidth + ' x ' + this.naturalHeight);
+                    }).error(function() {
+                        dimensions.text("Image failed to load");
                     });
                 }
-                group.find(".resource-targets-section input").change(function() {
-                    update_platform_labels(pane);
-                });
-
-                initialise_resource_id_group(group, resource);
-
-                group.find('.resource-targets-section .text-icon').popover({
-                    container: 'body',
-                    title: null,
-                    trigger: 'hover',
-                    html: true,
-                    animation: false,
-                    delay: {show: 250},
-                });
-
-                parent.append(group);
-            });
-            pane.find('.btn-delidentifier').toggle(resource.resource_ids.length > 1);
-            pane.find('#add-resource-id').removeClass('hide').click(function() {
-                var clone = parent.find('.resource-id-group-single:last').clone(false);
-
-                if(!clone.length) {
-                    clone = template.clone().removeClass('hide').attr('id','');
+                if (template_name == 'raw') {
+                    preview_pane.find('.resource-download-link').removeClass('hide').find('a').attr('href', preview_url);
+                    preview_pane.show();
+                    build_tags_editor(pane, preview_pane.find('.resource-tags'), tags) ;
                 }
-                parent.append(clone);
-                if (resource.kind == 'font') {
-                    clone.find('input[type=text], input[type=number]').on('input', function () {
-                        update_font_preview(clone);
-                    });
-                }
-                initialise_resource_id_group(clone, resource);
-                CloudPebble.Sidebar.SetIcon('resource-'+resource.id, 'edit');
-            });
 
-            pane.find('.image-platform-preview').toggle((_.contains(['png', 'png-trans', 'bitmap'], resource.kind)));
+                preview_pane.find('.btn-delvariant').click(function() {
+                    CloudPebble.Prompts.Confirm(gettext("Do you want to delete this resource variant?"), gettext("This cannot be undone."), function () {
+                        pane.find('input, button, select').attr('disabled', true);
 
-            pane.find("#edit-resource-file-name").val(resource.file_name);
-
-            pane.find('#edit-resource-delete').removeClass('hide').click(function() {
-                CloudPebble.Prompts.Confirm(interpolate(gettext("Do you want to delete %s?"), [resource.file_name]), gettext("This cannot be undone."), function() {
-                    pane.find('input, button, select').attr('disabled', 'disabled');
-                    Ajax.Post("/ide/project/" + PROJECT_ID + "/resource/" + resource.id + "/delete").then(function() {
-                        CloudPebble.Sidebar.DestroyActive();
-                        delete project_resources[resource.file_name];
-                        list_entry.remove();
-                        CloudPebble.Settings.RemoveResource(resource);
-                    }).catch(function(error) {
-                        alert(error);
-                    }).finally(function() {
-                        pane.find('input, button, select').removeAttr('disabled');
-                        ga('send', 'event', 'resource', 'delete')
+                        Ajax.Post('/ide/project/' + PROJECT_ID + '/resource/' + resource.id + '/' + variant_string + '/delete').then(function (data) {
+                            // Regenerate all the previews from scratch.
+                            // It's the easiest way.
+                            resource.variants = data.resource.variants;
+                            project_resources[resource.file_name].variants = resource.variants;
+                            generate_resource_previews(resource.kind);
+                            ga('send', 'event', 'resource', 'delete')
+                        }).catch(function(error) {
+                            alert(error.toString())
+                        }).finally(function() {
+                            pane.find('input, button, select').removeAttr('disabled');
+                        });
                     });
                 });
             });
+            if (CloudPebble.ProjectInfo.sdk_version == '2' && resource.variants.length > 0) {
+                pane.find('#edit-resource-new-file').hide();
+            }
+            // Only show the delete-variant buttons if there's more than one variant
+            pane.find('.btn-delvariant').toggle(resource.variants.length > 1);
+        };
 
-            var form = pane.find('form');
+        generate_resource_previews(resource.kind);
 
-            var live_form = make_live_settings_form({
-                form: form,
-                save_function: function() {
-                    return null;
-                },
-                on_change: function() {
+        var update_font_preview = function(group) {
+            group.find('.font-preview').remove();
+            var regex_str = group.find('.edit-resource-regex').val();
+            var id_str = group.find('.edit-resource-id').val();
+            var preview_regex = new RegExp('');
+            try {
+                preview_regex = new RegExp(regex_str ? regex_str : '.', 'g');
+                group.find('.font-resource-regex-group').removeClass('error').find('.help-block').text(gettext("A PCRE regular expression that restricts characters."));
+            } catch (e) {
+                group.find('.font-resource-regex-group').addClass('error').find('.help-block').text(e);
+            }
+            var tracking = parseInt(group.find('.edit-resource-tracking').val(), 10) || 0;
+
+            _.each(resource.variants, function (tags) {
+                var row = $('<div class="control-group font-preview"><label class="control-label">' + gettext('Preview') + '</label>');
+                var preview_holder = $('<div class="controls">');
+                var font_tag_preview = $('<div class="font-tag-preview">').appendTo(preview_holder).text(gettext("For ") + (
+                    _.chain(tags)
+                        .map(get_tag_data_for_id)
+                        .pluck('name').value()
+                        .join(', ')
+                    || gettext("untagged")) + gettext(" file")
+                );
+                var preview = $('<div>').appendTo(preview_holder);
+                var line = ('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!@#$%^& *()_+[]{}\\|;:\'"<>?`'.match(preview_regex) || []).join('');
+                var font_size = id_str.match(/[0-9]+$/)[0];
+
+                preview.text(line);
+                // Officially, a CSS pixel is defined as one pixel at 96 dpi.
+                // 96 / PEBBLE_PPI should thus be correct.
+                // We use 'transform' to work around https://bugs.webkit.org/show_bug.cgi?id=20606
+                preview.css({
+                    'font-family': CloudPebble.Resources.GetFontFamily(resource, tags),
+                    'font-size': font_size + 'px',
+                    'line-height': font_size + 'px',
+                    'letter-spacing': tracking + 'px',
+                    'transform': 'scale(' + (96 / PEBBLE_PPI) + ')',
+                    'transform-origin': '0 0',
+                    'display': 'inline-block',
+                    'border': (2 * (PEBBLE_PPI / 96)) + 'px solid #767676',
+                    'padding': '5px',
+                    'border-radius': '5px',
+                    'background-color': 'white',
+                    'color': 'black',
+                    'word-wrap': 'break-word',
+                    'width': 'calc(100% * 1/0.547945)'
+                });
+                // The parent element doesn't take the CSS transform in to account when calculating its own height
+                // based on it children, so there is a large gap left underneath.
+                // We fix this calculating the height of the preview's empty space and subtracting it from the
+                // parent element's margin.
+                _.defer(function() {
+                    preview_holder.css({
+                        'margin-bottom': (60 - (preview.height() * (1 - 96/PEBBLE_PPI))) +'px'
+                    })
+                });
+
+                row.append(preview_holder);
+                group.append(row);
+            });
+        };
+
+        var initialise_resource_id_group = function(group, resource) {
+            group.find('.btn-delidentifier').click(function() {
+                CloudPebble.Prompts.Confirm(gettext("Do you want to this resource identifier?"), gettext("This cannot be undone."), function () {
+                    group.remove();
                     CloudPebble.Sidebar.SetIcon('resource-'+resource.id, 'edit');
-                }
-            }).init();
+                    save();
+                });
+            });
+        };
 
-            form.submit(save);
-            CloudPebble.GlobalShortcuts.SetShortcutHandlers({
-                save: save
+        var template = pane.find('.resource-id-group-single').detach();
+        var parent = $('#resource-id-group').removeClass('hide');
+        $.each(resource.resource_ids, function(index, value) {
+            var group = template.clone();
+            group.removeClass('hide').attr('id','');
+            group.find('.edit-resource-id').val(value.id);
+            if (resource.kind == 'font') {
+                group.find('.edit-resource-regex').val(value.regex);
+                group.find('.edit-resource-tracking').val(value.tracking || '0');
+                group.find('.font-compat-option').val(value.compatibility || "");
+                update_font_preview(group);
+                group.find('input[type=text], input[type=number]').on('input', function() {
+                    update_font_preview(group);
+                });
+                group.find('.non-font-only').remove();
+            } else {
+                group.find('.font-only').remove();
+            }
+
+            if (resource.kind == 'bitmap') {
+                group.find('.bitmap-memory-format-option').val(value.memory_format|| "");
+                group.find('.bitmap-storage-format-option').val(value.storage_format || "");
+                group.find('.bitmap-space-optimisation-option').val(value.space_optimisation || "");
+            }
+            else {
+                group.find('.bitmap-only').remove()
+            }
+
+            var has_target_platforms = _.isArray(value["target_platforms"]);
+            if (has_target_platforms) {
+                var target_platforms_checkbox = group.find(".edit-resource-target-platforms-enabled");
+                target_platforms_checkbox.prop('checked', true);
+                _.each(_.keys(PLATFORMS), function(platform) {
+                    group.find(".edit-resource-target-"+platform).prop('checked', _.contains(value["target_platforms"], platform));
+                });
+            }
+            group.find(".resource-targets-section input").change(function() {
+                update_platform_labels(pane);
             });
 
-            restore_pane(pane);
-        }).finally(function() {
-            CloudPebble.ProgressBar.Hide();
+            initialise_resource_id_group(group, resource);
+
+            group.find('.resource-targets-section .text-icon').popover({
+                container: 'body',
+                title: null,
+                trigger: 'hover',
+                html: true,
+                animation: false,
+                delay: {show: 250},
+            });
+
+            parent.append(group);
         });
+        pane.find('.btn-delidentifier').toggle(resource.resource_ids.length > 1);
+        pane.find('#add-resource-id').removeClass('hide').click(function() {
+            var clone = parent.find('.resource-id-group-single:last').clone(false);
+
+            if(!clone.length) {
+                clone = template.clone().removeClass('hide').attr('id','');
+            }
+            parent.append(clone);
+            if (resource.kind == 'font') {
+                clone.find('input[type=text], input[type=number]').on('input', function () {
+                    update_font_preview(clone);
+                });
+            }
+            initialise_resource_id_group(clone, resource);
+            CloudPebble.Sidebar.SetIcon('resource-'+resource.id, 'edit');
+        });
+
+        pane.find('.image-platform-preview').toggle((_.contains(['png', 'png-trans', 'bitmap'], resource.kind)));
+
+        pane.find("#edit-resource-file-name").val(resource.file_name);
+
+        pane.find('#edit-resource-delete').removeClass('hide').click(function() {
+            CloudPebble.Prompts.Confirm(interpolate(gettext("Do you want to delete %s?"), [resource.file_name]), gettext("This cannot be undone."), function() {
+                pane.find('input, button, select').attr('disabled', 'disabled');
+                Ajax.Post("/ide/project/" + PROJECT_ID + "/resource/" + resource.id + "/delete").then(function() {
+                    CloudPebble.Sidebar.DestroyActive();
+                    delete project_resources[resource.file_name];
+                    list_entry.remove();
+                    CloudPebble.Settings.RemoveResource(resource);
+                }).catch(function(error) {
+                    alert(error);
+                }).finally(function() {
+                    pane.find('input, button, select').removeAttr('disabled');
+                    ga('send', 'event', 'resource', 'delete')
+                });
+            });
+        });
+
+        var form = pane.find('form');
+
+        var live_form = make_live_settings_form({
+            form: form,
+            save_function: function() {
+                return null;
+            },
+            on_change: function() {
+                CloudPebble.Sidebar.SetIcon('resource-'+resource.id, 'edit');
+            }
+        }).init();
+
+        form.submit(save);
+        CloudPebble.GlobalShortcuts.SetShortcutHandlers({
+            save: save
+        });
+
+        restore_pane(pane);
+        CloudPebble.ProgressBar.Hide();
     };
 
 
@@ -895,6 +896,16 @@ CloudPebble.Resources = (function() {
             template.find('.font-only').toggleClass('hide', (kind !== 'font'));
             template.find('.bitmap-only').toggleClass('hide', (kind !== 'bitmap'));
         });
+
+
+        if (CloudPebble.ProjectInfo.type !== 'native' && CloudPebble.ProjectInfo.type !== 'package' && CloudPebble.ProjectInfo.type !== 'rocky')
+        {
+            template.find('#edit-resource-type option[value="font"]').hide();
+            template.find('#edit-resource-type option[value="raw"]').hide();
+            template.find('#edit-resource-type option[value="png-trans"]').hide();
+            if (CloudPebble.ProjectInfo.sdk_version !== '3')
+                template.find('#edit-resource-type option[value="pbi"]').hide();
+        }
 
         template.find("#edit-resource-file").change(function() {
             var input = $(this);

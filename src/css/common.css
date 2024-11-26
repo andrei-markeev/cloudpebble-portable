@@ -371,11 +371,11 @@ input[type=checkbox] {
     height: 30px;
     width: 30px;
     cursor: pointer;
-    background-image: url('../../common/img/checkbox-unchecked.png');
+    background-image: url('/img/checkbox-unchecked.png');
 }
 
 input[type=checkbox]:checked {
-    background-image: url('../../common/img/checkbox.png');
+    background-image: url('/img/checkbox.png');
 }
 
 input[type=checkbox]:disabled {
@@ -411,11 +411,11 @@ input[type=checkbox]:disabled {
     height: 18px;
     width: 18px;
     margin: 0;
-    background-image: url('../../common/img/small-checkbox-unchecked.png');
+    background-image: url('/img/small-checkbox-unchecked.png');
 }
 
 .form-popover input[type=checkbox]:checked {
-    background-image: url('../../common/img/small-checkbox.png');
+    background-image: url('/img/small-checkbox.png');
 }
 
 .help-block {
@@ -687,7 +687,7 @@ select:invalid {
 }
 
 .settings-status-icons span {
-    background-image: url("../../common/img/glyphicons-halflings-white.png");
+    background-image: url("/img/glyphicons-halflings-white.png");
 }
 
 .fixed-well {

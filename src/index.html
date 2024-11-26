@@ -221,7 +221,276 @@
             </div>
         </div>
         
-        <!-- TODO {% include "ide/project/resource.html" %} -->
+        <!-- Resource editing template -->
+        <div id="resource-pane-template" class="hide resource-pane">
+            <form class="form-horizontal">
+                <div class="well alert alert-error hide"></div>
+                <div class="well">
+                    <div class="control-group">
+                        <label class="control-label" for="edit-resource-type">Resource type</label>
+                        <div class="controls">
+                            <select id="edit-resource-type">
+                                <option value="bitmap">Bitmap Image</option>
+                                <option value="font">TrueType font</option>
+                                <option value="raw">Raw binary blob</option>
+                                <option value="png">PNG image (deprecated)</option>
+                                <option value="png-trans">PNG with transparency (deprecated)</option>
+                                <option value="pbi">1-bit Pebble image (deprecated)</option>
+                            </select>
+                        </div>
+                    </div>
+        
+                    <div class="control-group" id="edit-resource-file-name_section">
+                        <label class="control-label" for="edit-resource-file-name">File name</label>
+                        <div class="controls">
+                            <input type="text" id="edit-resource-file-name" name="file_name" pattern="^[\/a-zA-Z0-9_\(\)\. \-]+$">
+                        </div>
+                    </div>
+                </div>
+        
+                <div id="resource-id-group">
+                    <div class="well resource-id-group-single">
+                        <div class="control-group">
+                            <label class="control-label">Identifier</label>
+                            <div class="controls">
+                                <input type="text" class="span6 edit-resource-id font-only" placeholder="FONT_EXAMPLE_BOLD_SUBSET_24" pattern="[A-Za-z0-9_]*[0-9]+">
+                                <input type="text" class="span6 edit-resource-id non-font-only" placeholder="IMAGE_EXAMPLE_IDENTIFIER" pattern="^\w+$">
+                                <span class="help-block">This is used in your code and must be a valid C identifier.' %}<br>
+                                    <span class="font-only">It must end with the desired font size.</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="control-group font-resource-regex-group font-only">
+                            <label class="control-label">Characters' context "like letters and numbers</label>
+                            <div class="controls">
+                                <input type="text" class="span4 edit-resource-regex" placeholder="[0-9:. ]">
+                                <span class="help-block">A PCRE regular expression that restricts characters.</span>
+                            </div>
+                        </div>
+                        <div class="control-group font-resource-tracking-group font-only">
+                            <label class="control-label">Tracking adjust</label>
+                            <div class="controls">
+                                <input type="number" class="span1 edit-resource-tracking" value="0">
+                                <span class="help-block">Number of additional pixels by which to shift each character.</span>
+                            </div>
+                        </div>
+                        <div class="control-group font-resource-compatibility-group font-only">
+                            <label class="control-label">Compatibility</label>
+                            <div class="controls">
+                                <select class="font-compat-option">
+                                    <option value="">Latest</option>
+                                    <option value="2.7">2.7 and earlier</option>
+                                </select>
+                                <span class="help-block">Determines the font rendering algorithm to use. The latest looks better, but can produce slightly larger characters.</span>
+                            </div>
+                        </div>
+                        <div class="control-group bitmap-only">
+                            <label class="control-label">Memory Format</label>
+                            <div class="controls">
+                                <select class="bitmap-memory-format-option">
+                                    <option value="">Best</option>
+                                    <option value="Smallest">Smallest</option>
+                                    <option value="SmallestPalette">Smallest Palette</option>
+                                    <option value="1Bit">1-bit</option>
+                                    <option value="8Bit">8-bit</option>
+                                    <option value="1BitPalette">1-bit Palette</option>
+                                    <option value="2BitPalette">2-bit Palette</option>
+                                    <option value="4BitPalette">4-bit Palette</option>
+                                </select>
+                                <span class="help-block">Determines the bitmap type.</span>
+                            </div>
+                        </div>
+                        <div class="control-group bitmap-only">
+                            <label class="control-label">Storage Format</label>
+                            <div class="controls">
+                                <select class="bitmap-storage-format-option">
+                                    <option value="">Best</option>
+                                    <option value="pbi">PBI</option>
+                                    <option value="png">PNG</option>
+                                </select>
+                                <span class="help-block">Determines the file format used for storage.</span>
+                            </div>
+                        </div>
+                        <div class="control-group bitmap-only">
+                            <label class="control-label">Space Optimisation</label>
+                            <div class="controls">
+                                <select class="bitmap-space-optimisation-option">
+                                    <option value="">Best</option>
+                                    <option value="storage">Storage</option>
+                                    <option value="memory">Memory</option>
+                                </select>
+                                <span class="help-block">Determines whether the output resource is optimised for low runtime memory or low resource space usage.</span>
+                            </div>
+                        </div>
+        
+                        <div class="resource-targets-section sdk3-only native-only">
+                            <div class="control-group controls">
+                                <label style="width: 250px" class="control-label">Target platforms
+                                    <span class="text-icon" data-content="Use the Target Platforms option when you want a specific resource ID to only be available for specific platforms. <br> If you want this resource to be available on multiple platforms but with different files, upload additional images and tag them.">?</span>
+                                </label>
+                                <input type="checkbox" class="edit-resource-target-platforms-enabled"> <p></p>
+        
+                                <div class="edit-resource-targets">
+                                    <div class="edit-resource-target-options">
+                                        <br/>
+                                    <!-- TODO -->
+                                        <div class="control-group">
+                                            <label class="control-label" for="edit-resource-target-aplite">Aplite</label>
+                                            <input type="checkbox" class="edit-resource-target-aplite">
+                                        </div>
+                                        <div class="control-group">
+                                            <label class="control-label" for="edit-resource-target-basalt">Basalt</label>
+                                            <input type="checkbox" class="edit-resource-target-basalt">
+                                        </div>
+                                        <div class="control-group">
+                                            <label class="control-label" for="edit-resource-target-chalk">Chalk</label>
+                                            <input type="checkbox" class="edit-resource-target-chalk">
+                                        </div>
+                                        <div class="control-group">
+                                            <label class="control-label" for="edit-resource-target-diorite">Diorite</label>
+                                            <input type="checkbox" class="edit-resource-target-diorite">
+                                        </div>
+                                        <div class="control-group">
+                                            <label class="control-label" for="edit-resource-target-emery">Emery</label>
+                                            <input type="checkbox" class="edit-resource-target-emery">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-small btn-danger btn-delete-well btn-delidentifier">Delete Identifier</button>
+                    </div>
+                </div>
+        
+                <div class="well image-platform-preview hide sdk3-only">
+                    <h4>Preview per platform</h4>
+                    <p class="help-block">Given the tags for each variant, this shows the final version selected for each platform.</p>
+                    <div class="pane-boxes pane-3-boxes ">
+                        <div id="resource-image-preview-for-aplite">
+                            <h4>Aplite</h4>
+                            <span></span>
+                            <img src="">
+                        </div>
+                        <div id="resource-image-preview-for-basalt">
+                            <h4>Basalt</h4>
+                            <span></span>
+                            <img src="">
+                        </div>
+                        <div id="resource-image-preview-for-chalk">
+                            <h4>Chalk</h4>
+                            <span></span>
+                            <img src="">
+                        </div>
+                        <div id="resource-image-preview-for-diorite">
+                            <h4>Diorite</h4>
+                            <span></span>
+                            <img src="">
+                        </div>
+                        <div id="resource-image-preview-for-emery">
+                            <h4>Emery</h4>
+                            <span></span>
+                            <img src="">
+                        </div>
+                    </div>
+                    <div style="clear: both;"></div>
+                </div>
+        
+                <div id="edit-resource-previews">
+        
+                </div>
+        
+                <div id="edit-image-resource-preview-template" class="hide">
+                    <div class="image-resource-preview-pane well">
+                        <div class="control-group image-resource-preview">
+                            <label class="control-label">
+                                Image preview
+                            </label>
+                            <div class="controls">
+                                <img src=""><p class="image-resource-preview-dimensions">52x52</p>
+                            </div>
+                        </div>
+                        <div class="tag-edit control-group sdk3-only">
+                            <label class="control-label">Tags</label>
+                            <div class="controls">
+                                <textarea class="resource-tags" rows="1" cols="60"></textarea>
+                            </div>
+                        </div>
+                        <div class="variant-platform-preview control-group sdk3-only">
+                            <label class="control-label">Final platforms</label>
+                            <div class="controls label-list"></div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">Replace file</label>
+                            <div class="controls">
+                                <input type="file" class="edit-resource-replace-file">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-small btn-danger btn-delete-well btn-delvariant">Delete Variant</button>
+                    </div>
+                </div>
+        
+                <div id="edit-raw-resource-preview-template" class="hide">
+                    <div class="raw-resource-preview-pane well">
+                        <div class="control-group ">
+                            <label class="control-label">
+                                Resource
+                            </label>
+                            <div class="controls resource-download-link">
+                                <a href="#" class="btn">Download uploaded resource</a>
+                            </div>
+                        </div>
+        
+                        <div class="tag-edit control-group sdk3-only">
+                            <label class="control-label">Tags</label>
+                            <div class="controls">
+                                <textarea class="resource-tags" rows="1" cols="60"></textarea>
+                            </div>
+                        </div>
+                        <div class="variant-platform-preview control-group sdk3-only">
+                            <label class="control-label">Final platforms</label>
+                            <div class="controls label-list"></div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">Replace file</label>
+                            <div class="controls">
+                                <input type="file" class="edit-resource-replace-file">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-small btn-danger btn-delete-well btn-delvariant">Delete Variant</button>
+                    </div>
+                </div>
+        
+                <div class="well" id="edit-resource-new-file">
+                    <div class="control-group">
+                        <label class="control-label" for="edit-resource-file">Upload new file</label>
+                        <div class="controls">
+                            <input type="file" id="edit-resource-file">
+                        </div>
+                    </div>
+                    <div class="tag-edit control-group sdk3-only">
+                        <label class="control-label">Tags</label>
+                        <div class="controls">
+                            <textarea id="new-resource-tags" class="resource-tags" rows="1" cols="60"></textarea>
+                        </div>
+                    </div>
+                    <div class="variant-platform-preview control-group sdk3-only">
+                        <label class="control-label">Final platforms</label>
+                        <div class="controls label-list"></div>
+                    </div>
+                </div>
+        
+                <div id="edit-resource-buttons" class="well resource-actions">
+                    <button type="submit" class="btn btn-affirmative">Save</button>
+                    <button type="button" class="btn btn-danger hide" id="edit-resource-delete">Delete</button>
+                    <button type="button" class="btn hide" id="add-resource-id">
+                        <span class="font-only">Another font</span>
+                        <span class="non-font-only">Another Identifer</span>
+                    </button>
+                </div>
+            </form>
+        
+        </div>
+        
         <!-- TODO {% include "ide/project/settings.html" %} -->
         <!-- TODO {% include "ide/project/timeline.html" %} -->
         <!-- TODO {% include "ide/project/dependencies.html" %} -->
