@@ -1,4 +1,5 @@
 local ProjectFiles = require('ProjectFiles')
+local DownloadBundle = require('DownloadBundle')
 
 local host_os = GetHostOs();
 if host_os ~= 'WINDOWS' then
@@ -11,9 +12,43 @@ if host_os ~= 'WINDOWS' then
     return
 end
 
+local home_dir;
+if host_os == 'WINDOWS' then
+    home_dir = os.getenv("USERPROFILE");
+else
+    home_dir = os.getenv("HOME");
+end
+
+if home_dir == nil then
+    Log(kLogWarn, 'User home directory not found!')
+    home_dir = ''
+end
+
+local container_dir = path.join(home_dir, '.pebble/pebblesdk-container')
+local rootfs_dir = path.join(container_dir, 'rootfs')
+
+local status, text = DownloadBundle.Check(container_dir)
+if status ~= 'ready' then
+
+    SetStatus(200)
+    SetHeader('Content-Type', 'application/json; charset=utf-8')
+    if status == 'error' then
+        Write(EncodeJson({
+            success = false,
+            error = text
+        }))
+    else
+        Write(EncodeJson({
+            success = true,
+            progress = text
+        }))
+    end
+    return
+end
+
 local app_info = assert(ProjectFiles.getAppInfo())
 
-if not path.exists('.pebble/pebblesdk-container/rootfs/pebble/compile_' .. app_info.projectType .. '.sh') then
+if not path.exists(path.join(rootfs_dir, 'pebble/compile_' .. app_info.projectType .. '.sh')) then
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')
     Write(EncodeJson({
@@ -53,6 +88,9 @@ local function fail_build_if_err(val, err)
         current_build.state = 2
         current_build.finished = math.floor(GetTime() * 1000)
         assert(Barf(build_db_filename, EncodeJson(builds)))
+        if type(err) ~= 'string' then
+            err = err:name() .. ' ' .. err:doc()
+        end
         if not path.exists(build_log) then
             Barf(build_log, err);
         else
@@ -63,11 +101,7 @@ local function fail_build_if_err(val, err)
     return val, err
 end
 
--- TODO:
--- create .pebble/pebblesdk-container if needed
--- (for now done in compile.sh)
-
-local container_app_dir = '.pebble/pebblesdk-container/rootfs/pebble/app';
+local container_app_dir = path.join(rootfs_dir, 'pebble/app');
 if path.exists(container_app_dir) then
     fail_build_if_err(unix.rmrf(container_app_dir));
 end
@@ -108,7 +142,7 @@ else
                 wsl_path,
                 '--user', 'root',
                 '--',
-                'chroot', '.pebble/pebblesdk-container/rootfs', 'sh', '-c', 'pebble/compile_' .. app_info.projectType .. '.sh'
+                'sh', '-c', 'chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/compile_' .. app_info.projectType .. '.sh'
             })
 
             if err ~= nil then
@@ -125,7 +159,7 @@ else
             fail_build_if_err(unix.wait())
             Log(kLogWarn, 'done waiting')
 
-            local build_dir = '.pebble/pebblesdk-container/rootfs/pebble/assembled/build';
+            local build_dir = path.join(rootfs_dir, 'pebble/assembled/build');
             fail_build_if_err(unix.rename(path.join(build_dir, 'assembled.pbw'), '.pebble/builds/' .. build_uuid .. '.pbw'))
             local sizeInfo = {}
             for _, p in ipairs(app_info.targetPlatforms) do
@@ -133,7 +167,7 @@ else
                 local res_stat = fail_build_if_err(unix.stat(path.join(build_dir, p, 'app_resources.pbpack')))
                 sizeInfo[p] = { app = app_stat:size(), resources = res_stat:size() }
             end
-            fail_build_if_err(unix.rmrf('.pebble/pebblesdk-container/rootfs/pebble/assembled'))
+            fail_build_if_err(unix.rmrf(path.join(rootfs_dir, 'pebble/assembled')))
             current_build.state = 3
             current_build.finished = math.floor(GetTime() * 1000)
             current_build.sizes = sizeInfo

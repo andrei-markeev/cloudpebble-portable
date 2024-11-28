@@ -244,19 +244,31 @@ CloudPebble.Compile = (function() {
     };
 
     var run_build = function() {
-        CloudPebble.Prompts.Progress.Show(gettext("Build starting..."));
+        CloudPebble.Prompts.Progress.Show(gettext("Preparing build environment..."));
         ga('send', 'event', 'build', 'run', { eventValue: ++m_build_count });
-        return Ajax.Post('/api/compile-project.lua').then(function (data) {
-            CloudPebble.Prompts.Progress.Hide();
-            var temp_build = {started: Date.now(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
-            update_last_build(pane, temp_build);
-            pane.find('#run-build-table').prepend(build_history_row(temp_build));
-            mRunningBuild = true;
-            return update_build_history(pane);
-        }).catch(function(err) {
-            CloudPebble.Prompts.Progress.Update(err.toString());
-            CloudPebble.Prompts.Progress.Fail();
-        });
+        var init_build = function() {
+            return Ajax.Post('/api/compile-project.lua').then(function (data) {
+                if (data.progress) {
+                    CloudPebble.Prompts.Progress.Update(data.progress);
+                    return new Promise((r) => setTimeout(r, 3000)).then(function () {
+                        return init_build();
+                    });
+                }
+
+                CloudPebble.Prompts.Progress.Hide();
+                var temp_build = {started: Date.now(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
+                update_last_build(pane, temp_build);
+                pane.find('#run-build-table').prepend(build_history_row(temp_build));
+                mRunningBuild = true;
+                return update_build_history(pane);
+            })
+        }
+
+        return init_build()
+            .catch(function(err) {
+                CloudPebble.Prompts.Progress.Update(err.toString());
+                CloudPebble.Prompts.Progress.Fail();
+            });
     };
 
     var format_build_size = function(size, max_code, max_worker, max_resources) {

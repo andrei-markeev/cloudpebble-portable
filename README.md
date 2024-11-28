@@ -12,6 +12,13 @@ Remaining dependencies are packaged in. The application is distributed as a sing
 
 **Work in progress**. Not ready yet.
 
+- Editing source files works: you can create, edit, rename, delete, etc.
+- Editing resources works partially, some scenarios don't work
+- Code completion doesn't work
+- Compilation works partially:
+    - on Windows via WSL and chroot: C SDK and PebbleJS projects are currently supported
+- Emulator doesn't work
+
 ### Usage
 
 Download the `cloudpebble-portable.com` executable from **Releases**. Change directory to where your `appinfo.json` resides and run the executable from there. The browser will pop up, showing CloudPebble interface, and your files in there.
