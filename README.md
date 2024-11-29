@@ -12,24 +12,31 @@ Remaining dependencies are packaged in. The application is distributed as a sing
 
 **Work in progress**. Not ready yet.
 
-- Editing source files works: you can create, edit, rename, delete, etc.
-- Editing resources works partially, some scenarios don't work
-- Code completion doesn't work
-- Compilation works partially:
-    - on Windows via WSL and chroot: C SDK and PebbleJS projects are currently supported
-- Emulator doesn't work
+- [x] 🟢 Editing source files works: you can create, edit, rename, delete, etc.
+- [ ] 🟡 Editing resources works partially, some scenarios don't work
+- [ ] 🔴 Code completion doesn't work
+- [ ] 🟡 Compilation works partially:
+    - [ ] 🟡 on Windows (via WSL and chroot)
+        - [x] 🟢 Pebble C SDK
+        - [x] 🟢 PebbleJS
+        - [ ] 🔴 SimpleJS
+        - [ ] 🔴 Pebble Package
+        - [ ] 🔴 RockyJS
+- [ ] 🔴 Emulator doesn't work
+- [ ] 🔴 Dependencies management not implemented yet
+- [ ] 🔴 Project settings not implemented yet
 
 ### Usage
 
-Download the `cloudpebble-portable.com` executable from **Releases**. Change directory to where your `appinfo.json` resides and run the executable from there. The browser will pop up, showing CloudPebble interface, and your files in there.
+Download the `cloudpebble-portable.com` executable from **Releases**. Change directory to where your `appinfo.json` or `package.json` resides and run the executable from there. The browser will pop up, showing CloudPebble interface, and your files in there.
 
 ### Development
 
-Run `./init.sh` (one-time): it download redbean server and zip tool binaries from https://redbean.dev/ and puts them into `base` folder.
+Run `./init.sh` (one-time): it downloads redbean server and zip tool binaries from https://redbean.dev/ and puts them into `base` folder.
 
-Run `./build.sh`. Resulting executable will be created in the `dist` folder.
+Run `./build.sh`. It adds the source files into redbean executable. Result will appear in the `dist` folder.
 
 Put some Pebble watchapp or watchface files into the same folder and run.
 
-After initial build, I usually do `cd dist` and then `../build.sh && ./cloudpebble-portable.com` from there.
+I usually do `cd dist` and then `../build.sh && ./cloudpebble-portable.com` from there.
 Then test it by navigating to `http://localhost:8080`. Then if we made some more changes and need to refresh, `Ctrl+D` and run same command again.
