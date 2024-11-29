@@ -51,8 +51,6 @@ CloudPebble.TargetNames =   {
 CloudPebble.ProjectInfo = {};
 
 CloudPebble.Init = function() {
-    jquery_csrf_setup();
-
     // Load in project data.
     Ajax.Get('/api/project-info.lua').then(function(data) {
         CloudPebble.ProjectInfo = data;

@@ -60,8 +60,6 @@
         );
     }
 
-    jquery_csrf_setup();
-
     $('#btn-accept').click(handle_accept);
     $('#btn-export').click(handle_export);
     $('#btn-delete').click(handle_delete);

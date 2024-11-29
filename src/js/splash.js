@@ -1,6 +1,4 @@
 $(function() {
-    jquery_csrf_setup();
-
     var gMainContent = $('.main-container');
 
     $('.btn-show-login').click(function() {

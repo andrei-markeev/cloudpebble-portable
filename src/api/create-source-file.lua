@@ -1,3 +1,5 @@
+local ProjectFiles = require('ProjectFiles')
+
 local file_name = GetParam('name');
 if file_name == '' or file_name == nil then
     ServeError(400)
@@ -7,27 +9,15 @@ end
 local target = GetParam('target');
 if target == nil then target = 'app' end
 
-local fd, err = unix.open('appinfo.json', unix.O_RDONLY)
-if err ~= nil then
-    SetStatus(200)
-    SetHeader('Content-Type', 'application/json; charset=utf-8')
-    Write(EncodeJson({
-        success=false,
-        error='appinfo.json not found in the working directory!'
-    }))
-    return;
-end;
-local file_contents = unix.read(fd);
-unix.close(fd);
-local app_info, err = DecodeJson(file_contents);
+local app_info, err = ProjectFiles.getAppInfo()
 if app_info == nil then
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')
     Write(EncodeJson({
         success=false,
-        error='appinfo.json contains incorrect json: ' .. err
+        error=err
     }))
-    return;
+    return
 end
 
 local project_dir = '';

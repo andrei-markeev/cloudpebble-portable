@@ -508,7 +508,7 @@ CloudPebble.Resources = (function() {
 
         var save = function(e) {
             if (e) e.preventDefault();
-            process_resource_form(form, false, resource.file_name, "/ide/project/" + PROJECT_ID + "/resource/" + resource.id + "/update").then(function(data) {
+            process_resource_form(form, false, resource.file_name, "/api/save-resource.lua?file_name=" + resource.file_name).then(function(data) {
                 delete project_resources[resource.file_name];
                 // Update our information about the resource.
                 update_resource(data);
@@ -543,14 +543,12 @@ CloudPebble.Resources = (function() {
             var previews = pane.find('#edit-resource-previews');
             previews.empty();
             _.each(resource.variants, function (tags) {
-                var variant_string;
+                var variant_filename = resource.file_name;
+                if (tags.length > 0) {
+                    var match = resource.file_name.match(/(^.+)\.([^\.]+)$/);
+                    variant_filename = match[1] + tags.join('~') + '.' + match[2];
+                }
                 var template_name;
-                if (tags.length == 0) {
-                    variant_string = '0';
-                }
-                else {
-                    variant_string = tags.join(',');
-                }
                 switch (kind) {
                     case 'bitmap':
                     case 'png':
@@ -565,7 +563,7 @@ CloudPebble.Resources = (function() {
                 }
 
                 // Add a cache-breaking query string to the end of the URL to ensure the image reloads
-                var preview_url = '/ide/project/' + PROJECT_ID + '/resource/' + resource.id + '/' + variant_string + '/get?'+new Date().getTime();
+                var preview_url = '/api/resource-variant.lua?file_name=' + variant_filename + '&kind=' + kind;
                 var preview_pane = pane.find('#edit-'+template_name+'-resource-preview-template > div').clone();
                 preview_pane.appendTo(previews).hide();
 

@@ -1,6 +1,4 @@
 $(function() {
-    jquery_csrf_setup();
-
     var import_button = $('#import-btn');
     import_button.click(function() {
         import_button.prop('disabled', true);

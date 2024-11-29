@@ -119,6 +119,7 @@ end
 
 readdir(".", "unknown");
 
+local resources_by_root_filename = {}
 local resources = {}
 if app_info.resources ~= nil and app_info.resources.media ~= nil then
     for _, r in ipairs(app_info.resources.media) do
@@ -136,25 +137,32 @@ if app_info.resources ~= nil and app_info.resources.media ~= nil then
             else
                 variants = { { [0] = false } }
             end
-
-            table.insert(resources, {
+            local resource_id = {
                 id = r.name,
-                identifiers = { r.name },
-                file_name = path.basename(r.file),
-                kind = r.type,
-                variants = variants,
-                resource_ids = { [0] = false}
-            })
+                target_platforms = r.targetPlatforms,
+                regex = r.characterRegex,
+                tracking = r.trackingAdjust,
+                compatibility = r.compatibility,
+                memory_format = r.memoryFormat,
+                storage_format = r.storage_format,
+                space_optimisation = r.space_optimisation
+            }
+            if not resources_by_root_filename[r.file] then
+                resources_by_root_filename[r.file] = {
+                    id = path.basename(r.file),
+                    identifiers = { r.name },
+                    file_name = path.basename(r.file),
+                    kind = r.type,
+                    variants = variants,
+                    resource_ids = { resource_id }
+                }
+                table.insert(resources, resources_by_root_filename[r.file])
+            else
+                table.insert(resources_by_root_filename[r.file].identifiers, r.name)
+                table.insert(resources_by_root_filename[r.file].resource_ids, resource_id)
+            end
+
         end
-        -- TODO
-        -- 'extra': {y.resource_id: y.get_options_dict(with_id=False) for y in x.identifiers.all()},
-            -- target_platforms: ('aplite'|'basalt'|'chalk'|'diorite'|'emery')[]
-            -- regex: string (which characters to include into the font, e.g. '[0-9:-]')
-            -- tracking: boolean
-            -- compatibility: ''
-            -- memory_format: 'Smallest' | 'SmallestPalette' | '1Bit' | '8Bit' | '1BitPalette' | '2BitPalette' | '4BitPalette'
-            -- storage_format: 'pbi' | 'png' | null
-            -- space_optimization: 'storage' | 'memory' | null
     end
 end
 

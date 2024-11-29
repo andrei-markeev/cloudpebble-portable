@@ -355,12 +355,14 @@ CloudPebble.Editor = (function() {
                     else {
                         var code = code_mirror.getValue();
                         try {
-                            json_parse(code);
+                            JSON.parse(code);
                         }
                         catch (e) {
+                            var m = e.message.match(/at position (\d+) \(line (\d+) column (\d+)\)/);
+                            var line = m ? +m[2] : 1;
                             errors = [{
                                 reason: e.message,
-                                line: code.slice(0, e.at).split('\n').length
+                                line: line
                             }]
                         }
                     }
