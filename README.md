@@ -2,18 +2,14 @@
 
 Simplified reincarnation of CloudPebble. Create, debug and package Pebble apps and watchfaces.
 
-It doesn't have users, registration, authentication. Github integration removed. Files are picked up from the file system
-contextually, so you can edit only one Pebble app project at a time.
-
-CloudPebble Portable is aiming to reduce amount of dependencies as much as possible. Some dependencies are removed.
-Remaining dependencies are packaged in. The application is distributed as a single executable based on [redbean web server](https://redbean.dev).
+CloudPebble Portable is aiming to be small and self-contained. The application is distributed as a single executable based on [redbean web server](https://redbean.dev). The size is ~10MB at the moment, but in order to compile your watch app, it will need to download additional ~75MB archive, which unpacks to ~250MB (this is still very small comparing to any other option, e.g. available Docker images are almost 1GB _archived_).
 
 ### Status
 
 **Work in progress**. Not ready yet.
 
 - [x] 🟢 Editing source files works: you can create, edit, rename, delete, etc.
-- [ ] 🟡 Editing resources works partially, some scenarios don't work
+- [x] 🟢 Editing resources works
 - [ ] 🔴 Code completion doesn't work
 - [ ] 🟡 Compilation works partially:
     - [ ] 🟡 on Windows (via WSL and chroot)
@@ -28,7 +24,7 @@ Remaining dependencies are packaged in. The application is distributed as a sing
 
 ### Usage
 
-Download the `cloudpebble-portable.com` executable from **Releases**. Change directory to where your `appinfo.json` or `package.json` resides and run the executable from there. The browser will pop up, showing CloudPebble interface, and your files in there.
+Download the `cloudpebble-portable.com` executable from **Releases**. Drop it into your watch app folder (i.e. where your `appinfo.json` or `package.json` resides) and run. The browser will pop up, showing CloudPebble interface.
 
 ### Development
 

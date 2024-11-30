@@ -45,6 +45,7 @@ local resource_ids = DecodeJson(resource_ids_str)--[[@as ResourceIdParam[] ]];
 local resource_ids_dict = {}
 for _, r in ipairs(resource_ids) do
     resource_ids_dict[r.id] = r
+    r["add"] = true
 end
 
 local updated_dir = ResourceVariants.getFolder(kind)
@@ -56,6 +57,7 @@ for _, r in ipairs(app_info.resources.media) do
     if path.basename(r.file) == file_name then
         local resource_id = resource_ids_dict[r.name]
         if resource_id then
+            resource_id["add"] = false
             table.insert(new_media, {
                 name = resource_id.id,
                 file = updated_file_path,
@@ -72,6 +74,24 @@ for _, r in ipairs(app_info.resources.media) do
         end
     else
         table.insert(new_media, r)
+    end
+end
+
+for _, rid in ipairs(resource_ids) do
+    if rid["add"] then
+        table.insert(new_media, {
+            name = rid.id,
+            file = updated_file_path,
+            type = kind,
+            menuIcon = false,
+            targetPlatforms = rid.target_platforms,
+            characterRegex = rid.regex,
+            trackingAdjust = rid.tracking,
+            compatibility = rid.compatibility,
+            memoryFormat = rid.memory_format,
+            storageFormat = rid.storage_format,
+            spaceOptimization = rid.space_optimisation
+        })
     end
 end
 

@@ -731,7 +731,7 @@ CloudPebble.Resources = (function() {
 
         var initialise_resource_id_group = function(group, resource) {
             group.find('.btn-delidentifier').click(function() {
-                CloudPebble.Prompts.Confirm(gettext("Do you want to this resource identifier?"), gettext("This cannot be undone."), function () {
+                CloudPebble.Prompts.Confirm(gettext("Do you want to delete this resource identifier?"), gettext("This cannot be undone."), function () {
                     group.remove();
                     CloudPebble.Sidebar.SetIcon('resource-'+resource.id, 'edit');
                     save();
@@ -816,7 +816,7 @@ CloudPebble.Resources = (function() {
         pane.find('#edit-resource-delete').removeClass('hide').click(function() {
             CloudPebble.Prompts.Confirm(interpolate(gettext("Do you want to delete %s?"), [resource.file_name]), gettext("This cannot be undone."), function() {
                 pane.find('input, button, select').attr('disabled', 'disabled');
-                Ajax.Post("/ide/project/" + PROJECT_ID + "/resource/" + resource.id + "/delete").then(function() {
+                Ajax.Post("/api/delete-resource.lua?file_name=" + resource.file_name).then(function() {
                     CloudPebble.Sidebar.DestroyActive();
                     delete project_resources[resource.file_name];
                     list_entry.remove();
