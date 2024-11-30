@@ -1,4 +1,5 @@
 local ProjectFiles = require('ProjectFiles')
+local ResourceVariants = require('ResourceVariants')
 
 local app_info, err = ProjectFiles.getAppInfo();
 if app_info == nil then
@@ -9,45 +10,6 @@ if app_info == nil then
         error='Failed to load application manifest: ' .. err
     }))
     return;
-end
-
-local tag_map = {
-    ['bw'] = 'VARIANT_MONOCHROME',
-    ['color'] = 'VARIANT_COLOUR',
-    ['rect'] = 'VARIANT_RECT',
-    ['round'] = 'VARIANT_ROUND',
-    ['aplite'] = 'VARIANT_APLITE',
-    ['basalt'] = 'VARIANT_BASALT',
-    ['chalk'] = 'VARIANT_CHALK',
-    ['diorite'] = 'VARIANT_DIORITE',
-    ['emery'] = 'VARIANT_EMERY',
-    ['mic'] = 'VARIANT_MIC',
-    ['strap'] = 'VARIANT_STRAP',
-    ['strappower'] = 'VARIANT_STRAPPOWER',
-    ['compass'] = 'VARIANT_COMPASS',
-    ['health'] = 'VARIANT_HEALTH',
-    ['144w'] = 'VARIANT_144W',
-    ['168h'] = 'VARIANT_168H',
-    ['180w'] = 'VARIANT_180W',
-    ['180h'] = 'VARIANT_180H',
-    ['200w'] = 'VARIANT_200W',
-    ['228h'] = 'VARIANT_228H',
-}
-
----@param file_name string
----@return string, string[]
----@overload fun(file_name: string): nil, string
-local function find_tags (file_name)
-    local tag_ids = {}
-    local file_name_without_ext, all_tags, ext = string.match(file_name, '^([^~]+)~([^%.]+)%..+$')
-    local root_file_name = file_name_without_ext .. '.' .. ext
-    for tag in string.gmatch(all_tags, "[^~]+") do
-        if tag_map[tag] == nil then
-            return nil, 'resource ' .. root_file_name .. ' has incorrect tag ' .. tag .. '!'
-        end
-        table.insert(tag_ids, tag_map[tag])
-    end
-    return root_file_name, tag_ids
 end
 
 local files = {};
@@ -81,7 +43,7 @@ local function readdir (dir, target)
                 if target == 'resource' then
 
                     if string.find(name, '~', 1, true) ~= nil then
-                        local root_file_name, tag_ids_or_err = find_tags(name);
+                        local root_file_name, tag_ids_or_err = ResourceVariants.findTags(name);
                         if root_file_name == nil then
                             SetStatus(200)
                             SetHeader('Content-Type', 'application/json; charset=utf-8')
@@ -96,6 +58,11 @@ local function readdir (dir, target)
                             resource_variants[root_file_name] = {}
                         end
                         table.insert(resource_variants[root_file_name], tag_ids_or_err);
+                    else
+                        if resource_variants[name] == nil then
+                            resource_variants[name] = {}
+                        end
+                        table.insert(resource_variants[name], { [0] = false });
                     end
 
                 elseif target ~= 'unknown' then
@@ -121,6 +88,7 @@ readdir(".", "unknown");
 
 local resources_by_root_filename = {}
 local resources = {}
+local menu_icon_id = nil
 if app_info.resources ~= nil and app_info.resources.media ~= nil then
     for _, r in ipairs(app_info.resources.media) do
         local skip = false
@@ -131,11 +99,15 @@ if app_info.resources ~= nil and app_info.resources.media ~= nil then
         end
 
         if not skip then
+            local root_file_name = path.basename(r.file)
             local variants = {}
-            if resource_variants[r.file] then
-                variants = resource_variants[r.file]
+            if resource_variants[root_file_name] then
+                variants = resource_variants[root_file_name]
             else
                 variants = { { [0] = false } }
+            end
+            if r.menuIcon then
+                menu_icon_id = r.name
             end
             local resource_id = {
                 id = r.name,
@@ -144,22 +116,22 @@ if app_info.resources ~= nil and app_info.resources.media ~= nil then
                 tracking = r.trackingAdjust,
                 compatibility = r.compatibility,
                 memory_format = r.memoryFormat,
-                storage_format = r.storage_format,
-                space_optimisation = r.space_optimisation
+                storage_format = r.storageFormat,
+                space_optimisation = r.spaceOptimization
             }
-            if not resources_by_root_filename[r.file] then
-                resources_by_root_filename[r.file] = {
-                    id = path.basename(r.file),
+            if not resources_by_root_filename[root_file_name] then
+                resources_by_root_filename[root_file_name] = {
+                    id = root_file_name,
                     identifiers = { r.name },
-                    file_name = path.basename(r.file),
+                    file_name = root_file_name,
                     kind = r.type,
                     variants = variants,
                     resource_ids = { resource_id }
                 }
-                table.insert(resources, resources_by_root_filename[r.file])
+                table.insert(resources, resources_by_root_filename[root_file_name])
             else
-                table.insert(resources_by_root_filename[r.file].identifiers, r.name)
-                table.insert(resources_by_root_filename[r.file].resource_ids, resource_id)
+                table.insert(resources_by_root_filename[root_file_name].identifiers, r.name)
+                table.insert(resources_by_root_filename[root_file_name].resource_ids, resource_id)
             end
 
         end
@@ -189,8 +161,7 @@ Write(EncodeJson({
     app_version_label = app_info.versionLabel,
     app_is_watchface = app_info.watchapp.watchface,
     app_is_hidden = app_info.watchapp.hiddenApp,
-    app_keys = app_info.appKeys,
-    parsed_app_keys = app_info.parsed_app_keys,
+    parsed_app_keys = app_info.appKeys,
     -- TODO
     -- 'app_is_shown_on_communication': project.app_is_shown_on_communication,
     app_capabilities = app_info.capabilities,
@@ -201,8 +172,7 @@ Write(EncodeJson({
     sdk_version = app_info.sdkVersion,
     app_platforms = app_info.targetPlatforms,
     app_modern_multi_js = app_info.enableMultiJS,
-    -- TODO
-    -- 'menu_icon': project.menu_icon.id if project.menu_icon else None,
+    menu_icon = menu_icon_id,
     source_files = files,
     resources = resources,
     supported_platforms = supported_platforms

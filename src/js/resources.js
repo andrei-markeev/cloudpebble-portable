@@ -23,6 +23,29 @@ CloudPebble.Resources = (function() {
     var TAG_200W = 19;
     var TAG_228H = 20;
 
+    var TAG_KEY_BY_ID = {
+        [TAG_MONOCHROME]: 'bw',
+        [TAG_COLOUR]: 'color',
+        [TAG_RECT]: 'rect',
+        [TAG_ROUND]: 'round',
+        [TAG_APLITE]: 'aplite',
+        [TAG_BASALT]: 'basalt',
+        [TAG_CHALK]: 'chalk',
+        [TAG_DIORITE]: 'diorite',
+        [TAG_EMERY]: 'emery',
+        [TAG_MIC]: 'mic',
+        [TAG_STRAP]: 'strap',
+        [TAG_STRAPPOWER]: 'strappower',
+        [TAG_COMPASS]: 'compass',
+        [TAG_HEALTH]: 'health',
+        [TAG_144W]: '144w',
+        [TAG_168H]: '168h',
+        [TAG_180W]: '180w',
+        [TAG_180H]: '180h',
+        [TAG_200W]: '200w',
+        [TAG_228H]: '228h'
+    }
+
     var TAGS = {
         color: {name: gettext("Colour"), id: TAG_COLOUR, excludes: [TAG_MONOCHROME, TAG_APLITE, TAG_DIORITE]},
         bw: {name: gettext("Monochrome"), id:TAG_MONOCHROME,  excludes: [TAG_COLOUR, TAG_BASALT, TAG_CHALK, TAG_EMERY, TAG_ROUND]},
@@ -67,7 +90,7 @@ CloudPebble.Resources = (function() {
      * @param {Number} id
      */
     function get_tag_data_for_id(id) {
-        return _.findWhere(TAGS, {id: id});
+        return TAGS[TAG_KEY_BY_ID[id]]
     }
 
     /**
@@ -336,13 +359,13 @@ CloudPebble.Resources = (function() {
         function extract_tags(element) {
             return element
                 .map(function (i, input) {
-                    return [[input.name.split('-')[1], input.value]];
+                    return [[input.name.split('-')[1], input.value.slice(1, -1)]];
                 })
                 .filter(function (i, val) {
-                    return (val[0] !== val[1].slice(1, -1));
+                    return (val[0] !== val[1]);
                 })
                 .map(function (i, val) {
-                    return [[val[0], JSON.parse(val[1])]]
+                    return [[val[0].split(',').map(v => +v), val[1].split(',').map(v => +v)]]
                 });
         }
 
@@ -425,7 +448,7 @@ CloudPebble.Resources = (function() {
             var file;
             file = process_file(kind, this);
             if (file !== null) {
-                var tags = $(this).parents('.image-resource-preview-pane, .raw-resource-preview-pane').find('.text-wrap input').val().slice(1, -1);
+                var tags = $(this).parents('.image-resource-preview-pane, .raw-resource-preview-pane').find('.text-wrap input').val().slice(1, -1).split(',').map(v => +v);
                 replacement_map.push([tags, replacements_files.length]);
                 replacements_files.push(file);
             }
@@ -464,14 +487,16 @@ CloudPebble.Resources = (function() {
         remove_error();
         disable_controls();
         ga('send', 'event', 'resource', 'save');
-        // TODO: CHECK THIS IS CORRECT!!!!!
+
+        var form_data;
         return Promise.resolve().then(function() {
             return get_resource_form_data(form, is_new, current_filename);
         }).then(function(resource_data) {
             console.log(resource_data);
+            form_data = resource_data;
             return save_resource(url, resource_data);
-        }).then(function(data) {
-            return data.file;
+        }).then(function() {
+            return form_data;
         }).catch(function(err) {
             report_error(err.toString());
             throw err;
@@ -487,10 +512,6 @@ CloudPebble.Resources = (function() {
         ga('send', 'event', 'resource', 'open');
 
         CloudPebble.ProgressBar.Show();
-        // TODO
-        resource.resource_ids = resource.identifiers.map(identifier => ({
-            id: identifier
-        }));
 
         var pane = prepare_resource_pane();
 
@@ -506,17 +527,37 @@ CloudPebble.Resources = (function() {
         pane.find('#edit-resource-type').val(resource.kind).attr('disabled', 'disabled');
         pane.find('#edit-resource-type').change();
 
+        var apply_tags_updates = function(tags_array, update_pairs, new_tags) {
+            var updates_dict = {};
+            for (var pair of update_pairs) {
+                updates_dict[pair[0].join(',')] = pair[1]
+            }
+            var updated_tags = [];
+            for (var tags of tags_array) {
+                updated_tags.push(updates_dict[tags.join(',')] || tags);
+            }
+            if (new_tags && new_tags.length > 0)
+                updated_tags.push($.makeArray(new_tags)[0][1]);
+            return updated_tags;
+        }
+
         var save = function(e) {
             if (e) e.preventDefault();
-            process_resource_form(form, false, resource.file_name, "/api/save-resource.lua?file_name=" + resource.file_name).then(function(data) {
+            process_resource_form(form, false, resource.file_name, "/api/save-resource.lua?file_name=" + resource.file_name).then(function(updates) {
                 delete project_resources[resource.file_name];
+    
+                resource.id = updates.name;
+                resource.kind = updates.kind;
+                resource.file_name = updates.name;
+                resource.resource_ids = updates.resources;
+                resource.identifiers = updates.resources.map(r => r.id);
+                resource.variants = apply_tags_updates(resource.variants, updates.variant_tags, updates.new_tags);
                 // Update our information about the resource.
-                update_resource(data);
-                resource = project_resources[data.file_name];
+                update_resource(resource);
 
                 // Set the resource's sidebar name
                 generate_resource_previews(resource.kind);
-                CloudPebble.Sidebar.SetItemName('resource', data.id, data.file_name);
+                CloudPebble.Sidebar.SetItemName('resource', resource.id, resource.file_name);
 
                 if(resource.kind == 'font') {
                     resource.family = null;
@@ -529,7 +570,7 @@ CloudPebble.Resources = (function() {
                 pane.find('#edit-resource-new-file input').val('');
                 pane.find('#edit-resource-new-file textarea').textext()[0].tags().empty().core().enabled(false);
                 pane.find('#edit-resource-new-file').toggleClass('file-present', false);
-                CloudPebble.Sidebar.ClearIcon('resource-'+resource.id);
+                CloudPebble.Sidebar.ClearIcon('resource-' + resource.id);
                 live_form.clearIcons();
 
                 // Only show the delete-identifiers button if there is more than one ID.
@@ -546,7 +587,7 @@ CloudPebble.Resources = (function() {
                 var variant_filename = resource.file_name;
                 if (tags.length > 0) {
                     var match = resource.file_name.match(/(^.+)\.([^\.]+)$/);
-                    variant_filename = match[1] + tags.join('~') + '.' + match[2];
+                    variant_filename = match[1] + '~' + tags.map(t => TAG_KEY_BY_ID[t]).join('~') + '.' + match[2];
                 }
                 var template_name;
                 switch (kind) {
@@ -787,7 +828,8 @@ CloudPebble.Resources = (function() {
             on_change: function() {
                 CloudPebble.Sidebar.SetIcon('resource-'+resource.id, 'edit');
             }
-        }).init();
+        });
+        live_form.init();
 
         form.submit(save);
         CloudPebble.GlobalShortcuts.SetShortcutHandlers({

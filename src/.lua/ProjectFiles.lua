@@ -1,5 +1,21 @@
 local ProjectFiles = {}
 
+---@alias TargetPlatform 'aplite' | 'basalt' | 'chalk' | 'diorite' | 'emery'
+
+---@alias MediaItem {
+    ---file: string,
+    ---name: string,
+    ---type: 'raw' | 'font' | 'bitmap' | 'pbi' | 'png-trans' | 'png',
+    ---menuIcon?: boolean,
+    ---targetPlatforms?: TargetPlatform[] | nil,
+    ---characterRegex?: string,
+    ---trackingAdjust?: number,
+    ---compatibility?: string,
+    ---memoryFormat?: 'Smallest' | 'SmallestPalette' | '1Bit' | '8Bit' | '1BitPalette' | '2BitPalette' | '4BitPalette',
+    ---storageFormat?: 'pbi' | 'png',
+    ---spaceOptimization?: 'storage' | 'memory',
+---}
+
 ---@alias AppInfo {
     ---projectType: 'native' | 'rocky' | 'package' | 'pebblejs' | 'simplyjs',
     ---name: string,
@@ -10,14 +26,14 @@ local ProjectFiles = {}
     ---longName: string,
     ---versionLabel: string,
     ---watchapp: { watchface: boolean, hiddenApp: boolean },
-    ---appKeys: string,
-    ---parsed_app_keys: [string, number][], 
+    ---appKeys: [string, number][], 
     ---capabilities: string[],
     ---sdkVersion: string,
     ---targetPlatforms: ('aplite' | 'basalt' | 'chalk' | 'diorite' | 'emery')[],
     ---enableMultiJS: boolean,
     ---menu_icon: string | nil,
-    ---resources: {media: any} | nil}
+    ---resources: { media: MediaItem[] },
+---}
 
 ---@return AppInfo
 ---@overload fun(): nil, string
@@ -26,7 +42,7 @@ function ProjectFiles.getAppInfo()
     local file_contents = Slurp(appinfo_filename)
     if file_contents == nil then
         appinfo_filename = 'package.json'
-        file_contents = Slurp(appinfo_filename, unix.O_RDONLY)
+        file_contents = Slurp(appinfo_filename)
     end
 
     if file_contents == nil then
@@ -36,7 +52,7 @@ function ProjectFiles.getAppInfo()
     ---@type AppInfo
     local app_info;
 
-    local file_object--[[@type { name: string, author: string, pebble: any } ]], err = DecodeJson(file_contents)--[[@as any]];
+    local file_object--[[@type { name: string, author: string, version: string, pebble: any } ]], err = DecodeJson(file_contents)--[[@as any]];
     if file_object ~= nil then
         if appinfo_filename == 'package.json' then
             if file_object.pebble == nil then
@@ -45,19 +61,50 @@ function ProjectFiles.getAppInfo()
             app_info = file_object.pebble
             app_info.shortName = file_object.name
             app_info.companyName = file_object.author
+            app_info.versionLabel = file_object.version
             app_info.longName = file_object.pebble.displayName
-            app_info.parsed_app_keys = file_object.pebble.messageKeys
+            app_info.appKeys = file_object.pebble.messageKeys
         else
-            app_info = file_object--[[@as any]]
-            app_info.parsed_app_keys = app_info.appKeys
+            app_info = file_object--[[@as AppInfo]]
         end
     end
 
-    if app_info.parsed_app_keys then
-        app_info.appKeys = EncodeJson(app_info.parsed_app_keys, { pretty = true })--[[@as string]]
-    end
-   
     return app_info, err
+end
+
+---@param app_info AppInfo
+function ProjectFiles.saveAppInfo(app_info)
+    if path.exists('appinfo.json') then
+        Barf('appinfo.json', EncodeJson(app_info))
+        return true
+    end
+
+    local file_contents, err = Slurp('package.json')
+    if err ~= nil then
+        return false, err
+    end
+
+    local file_object, err = DecodeJson(file_contents)--[[@as any]];
+    if err ~= nil then
+        return false, err
+    end
+
+    local pkgjson_object = file_object--[[@as { name: string, author: string, version: string, pebble: any }]]
+    pkgjson_object.name = app_info.shortName
+    pkgjson_object.author = app_info.companyName
+    pkgjson_object.version = app_info.versionLabel
+    pkgjson_object.pebble.uuid = app_info.uuid
+    pkgjson_object.pebble.displayName = app_info.longName
+    pkgjson_object.pebble.projectType = app_info.projectType
+    pkgjson_object.pebble.watchapp = app_info.watchapp
+    pkgjson_object.pebble.capabilities = app_info.capabilities
+    pkgjson_object.pebble.sdkVersion = app_info.sdkVersion
+    pkgjson_object.pebble.messageKeys = app_info.appKeys
+    pkgjson_object.pebble.enableMultiJS = app_info.enableMultiJS
+    pkgjson_object.pebble.targetPlatforms = app_info.targetPlatforms
+    pkgjson_object.pebble.resources = app_info.resources
+    Barf('package.json', assert(EncodeJson(pkgjson_object, { pretty = true })--[[@as string]]))
+
 end
 
 ---@param app_info AppInfo
