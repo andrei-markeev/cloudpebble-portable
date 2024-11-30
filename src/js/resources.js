@@ -510,6 +510,20 @@ CloudPebble.Resources = (function() {
         });
     };
 
+    var apply_tags_updates = function(tags_array, update_pairs, new_tags) {
+        var updates_dict = {};
+        for (var pair of update_pairs) {
+            updates_dict[pair[0].join(',')] = pair[1]
+        }
+        var updated_tags = [];
+        for (var tags of tags_array) {
+            updated_tags.push(updates_dict[tags.join(',')] || tags);
+        }
+        if (new_tags && new_tags.length > 0)
+            updated_tags.push($.makeArray(new_tags)[0][1]);
+        return updated_tags;
+    }
+
     var edit_resource = function(resource) {
         CloudPebble.FuzzyPrompt.SetCurrentItemName(resource.file_name);
         CloudPebble.Sidebar.SuspendActive();
@@ -531,20 +545,6 @@ CloudPebble.Resources = (function() {
         });
         pane.find('#edit-resource-type').val(resource.kind).attr('disabled', 'disabled');
         pane.find('#edit-resource-type').change();
-
-        var apply_tags_updates = function(tags_array, update_pairs, new_tags) {
-            var updates_dict = {};
-            for (var pair of update_pairs) {
-                updates_dict[pair[0].join(',')] = pair[1]
-            }
-            var updated_tags = [];
-            for (var tags of tags_array) {
-                updated_tags.push(updates_dict[tags.join(',')] || tags);
-            }
-            if (new_tags && new_tags.length > 0)
-                updated_tags.push($.makeArray(new_tags)[0][1]);
-            return updated_tags;
-        }
 
         var save = function(e) {
             if (e) e.preventDefault();
@@ -995,9 +995,20 @@ CloudPebble.Resources = (function() {
 
         form.submit(function(e) {
             e.preventDefault();
-            process_resource_form(form, true, null, "/ide/project/" + PROJECT_ID + "/create_resource").then(function(data) {
+            process_resource_form(form, true, null, "/api/create-resource.lua").then(function(form_data) {
+                var new_resource = {
+                    id: form_data.name,
+                    kind: form_data.kind,
+                    file_name: form_data.name,
+                    resource_ids: form_data.resources,
+                    identifiers: form_data.resources.map(r => r.id),
+                    variants: apply_tags_updates([], [], new_tags)
+                };
+
+                CloudPebble.ProjectInfo.resources.push(new_resource);
+
                 CloudPebble.Sidebar.DestroyActive();
-                resource_created(data);
+                resource_created(new_resource);
             }).catch(function() {/* ignore failure */});
         });
 
@@ -1055,30 +1066,28 @@ CloudPebble.Resources = (function() {
         GetResourceByID: function(id) {
             return _.find(project_resources, function(resource) { return _.contains(resource.identifiers, id); });
         },
-        GetFontFamily: function(font, variant) {
+        GetFontFamily: function(font, tags) {
             if(!font.family) {
                 font.family = [];
             }
-            if (_.isArray(variant)) {
-                if (variant.length == 0) {
-                    variant = '0';
+            var key = tags.join(',');
+            if(!font.family[key]) {
+                var variant_filename = font.file_name;
+                if (tags.length > 0) {
+                    var match = font.file_name.match(/(^.+)\.([^\.]+)$/);
+                    variant_filename = match[1] + '~' + tags.map(t => TAG_KEY_BY_ID[t]).join('~') + '.' + match[2];
                 }
-                else {
-                    variant = variant.join(',');
-                }
-            }
-            if(!font.family[variant]) {
-                var preview_url = '/ide/project/' + PROJECT_ID + '/resource/' + font.id +'/'+variant+'/get';
+                var preview_url = '/api/resource-variant.lua?file_name=' + variant_filename +'&kind=' + font.kind;
                 var style = document.createElement('style');
-                font.family[variant] = 'font-preview-' + font.id + '-' + (++preview_count);
-                var rule = '@font-face { font-family: "' + font.family[variant] + '"; src: url(' + preview_url + '#e' + (preview_count) + '); }';
+                font.family[key] = 'font-preview-' + font.id + '-' + (++preview_count);
+                var rule = '@font-face { font-family: "' + font.family[key] + '"; src: url(' + preview_url + '#e' + (preview_count) + '); }';
                 style.appendChild(document.createTextNode(rule));
                 $('body').append(style);
             }
-            return font.family[variant];
+            return font.family[key];
         },
         GetDefaultFontFamily: function(font) {
-            return CloudPebble.Resources.GetFontFamily(font, '0');
+            return CloudPebble.Resources.GetFontFamily(font, []);
         }
     };
 })();
