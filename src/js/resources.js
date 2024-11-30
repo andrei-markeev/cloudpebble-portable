@@ -355,6 +355,10 @@ CloudPebble.Resources = (function() {
             throw new Error(gettext("You must provide a valid filename. Only alphanumerics and characters in the set \"_(). -\" are allowed."));
         }
 
+        function string_to_tags(tags_str) {
+            return tags_str === '0' || tags_str === '' ? [] : tags_str.split(',').map(v => +v);
+        }
+
         // Extract the tags from each variant which has changed
         function extract_tags(element) {
             return element
@@ -365,7 +369,7 @@ CloudPebble.Resources = (function() {
                     return (val[0] !== val[1]);
                 })
                 .map(function (i, val) {
-                    return [[val[0].split(',').map(v => +v), val[1].split(',').map(v => +v)]]
+                    return [[string_to_tags(val[0]), string_to_tags(val[1])]]
                 });
         }
 
@@ -448,7 +452,8 @@ CloudPebble.Resources = (function() {
             var file;
             file = process_file(kind, this);
             if (file !== null) {
-                var tags = $(this).parents('.image-resource-preview-pane, .raw-resource-preview-pane').find('.text-wrap input').val().slice(1, -1).split(',').map(v => +v);
+                var tags_str = $(this).parents('.image-resource-preview-pane, .raw-resource-preview-pane').find('.text-wrap input').val().slice(1, -1);
+                var tags = string_to_tags(tags_str);
                 replacement_map.push([tags, replacements_files.length]);
                 replacements_files.push(file);
             }
@@ -631,10 +636,17 @@ CloudPebble.Resources = (function() {
                     CloudPebble.Prompts.Confirm(gettext("Do you want to delete this resource variant?"), gettext("This cannot be undone."), function () {
                         pane.find('input, button, select').attr('disabled', true);
 
-                        Ajax.Post('/ide/project/' + PROJECT_ID + '/resource/' + resource.id + '/' + variant_string + '/delete').then(function (data) {
+                        var variant_filename = resource.file_name;
+                        if (tags.length > 0) {
+                            var match = resource.file_name.match(/(^.+)\.([^\.]+)$/);
+                            variant_filename = match[1] + '~' + tags.map(t => TAG_KEY_BY_ID[t]).join('~') + '.' + match[2];
+                        }
+
+                        Ajax.Post('/api/delete-resource-variant.lua?file_name=' + variant_filename + '&kind=' + kind).then(function (data) {
                             // Regenerate all the previews from scratch.
                             // It's the easiest way.
-                            resource.variants = data.resource.variants;
+                            var tags_str = tags.join(',')
+                            resource.variants = resource.variants.filter(v => v.join(',') !== tags_str);
                             project_resources[resource.file_name].variants = resource.variants;
                             generate_resource_previews(resource.kind);
                             ga('send', 'event', 'resource', 'delete')
