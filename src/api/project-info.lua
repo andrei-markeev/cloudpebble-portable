@@ -12,79 +12,51 @@ if app_info == nil then
     return;
 end
 
+local all_files = ProjectFiles.findFiles(app_info, 'all')
 local files = {};
 local resource_variants = {};
----@param dir string
----@param target 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource'
-local function readdir (dir, target)
-    for name, kind in assert(unix.opendir(dir)) do
-        if string.sub(name, 1, 1) ~= '.' then
-            if kind == unix.DT_DIR then
+for _, file_info in ipairs(all_files) do
+    local file_path = path.join(file_info.dir, file_info.name)
 
-                local child_dir = ''
+    if file_info.target == 'resource' then
 
-                if dir == '.' then
-                    child_dir = name
-                else
-                    child_dir = path.join(dir, name)
-                end
-
-                local child_target = ProjectFiles.getFileTarget(app_info, dir);
-                if child_target == nil then
-                    child_target = target
-                end
-
-                readdir(child_dir, child_target);
-
-            elseif kind == unix.DT_REG then
-
-                local file_path = path.join(dir, name);
-
-                if target == 'resource' then
-
-                    if string.find(name, '~', 1, true) ~= nil then
-                        local root_file_name, tag_ids_or_err = ResourceVariants.findTags(name);
-                        if root_file_name == nil then
-                            SetStatus(200)
-                            SetHeader('Content-Type', 'application/json; charset=utf-8')
-                            Write(EncodeJson({
-                                success=false,
-                                error=tag_ids_or_err
-                            }))
-                            return
-                        end
-
-                        if resource_variants[root_file_name] == nil then
-                            resource_variants[root_file_name] = {}
-                        end
-                        table.insert(resource_variants[root_file_name], tag_ids_or_err);
-                    else
-                        if resource_variants[name] == nil then
-                            resource_variants[name] = {}
-                        end
-                        table.insert(resource_variants[name], { [0] = false });
-                    end
-
-                elseif target ~= 'unknown' then
-
-                    if ProjectFiles.isValidExtension(app_info, target, name) then
-                        local stat = assert(unix.stat(file_path));
-                        if dir == '.' then file_path = name end;
-                        table.insert(files, {
-                            name = name,
-                            target = target,
-                            file_path = file_path,
-                            lastModified = stat:mtim()
-                        });
-                    end
-       
-                end
+        if string.find(file_info.name, '~', 1, true) ~= nil then
+            local root_file_name, tag_ids_or_err = ResourceVariants.findTags(file_info.name);
+            if root_file_name == nil then
+                SetStatus(200)
+                SetHeader('Content-Type', 'application/json; charset=utf-8')
+                Write(EncodeJson({
+                    success=false,
+                    error=tag_ids_or_err
+                }))
+                return
             end
+
+            if resource_variants[root_file_name] == nil then
+                resource_variants[root_file_name] = {}
+            end
+            table.insert(resource_variants[root_file_name], tag_ids_or_err);
+        else
+            if resource_variants[file_info.name] == nil then
+                resource_variants[file_info.name] = {}
+            end
+            table.insert(resource_variants[file_info.name], { [0] = false });
         end
+
+    elseif file_info.target ~= 'unknown' then
+
+        if ProjectFiles.isValidExtension(app_info, file_info.target, file_info.name) then
+            local stat = assert(unix.stat(file_path));
+            table.insert(files, {
+                name = file_info.name,
+                target = file_info.target,
+                file_path = file_path,
+                lastModified = stat:mtim()
+            });
+        end
+
     end
 end
-
-readdir(".", "unknown");
 
 local resources_by_root_filename = {}
 local resources = {}

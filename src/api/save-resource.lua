@@ -92,44 +92,30 @@ local function arrayEqual(a1, a2)
     return true
 end
 
----@param dir string
----@param target 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource'
-local function readdir (dir, target)
-    for name, kind in assert(unix.opendir(dir or '.')) do
-        if string.sub(name, 1, 1) ~= '.' then
-            if kind == unix.DT_DIR then
-                local child_target = ProjectFiles.getFileTarget(app_info, dir)
-                local child_dir = path.join(dir, name)
-                readdir(child_dir, child_target)
-            elseif kind == unix.DT_REG then
-                if target == 'resource' then
-                    local root_fname, tags = ResourceVariants.findTags(name);
-                    if root_fname == file_name then
-                        for _, v in ipairs(variants) do
-                            local old_tags = v[1]
-                            local new_tags = v[2]
-                            if arrayEqual(old_tags, tags) then
-                                local updated_file_path_with_tags = path.join(dir, ResourceVariants.getFileName(updated_file_name, new_tags));
-                                Log(kLogInfo, 'Renaming ' .. path.join(dir, name) .. ' to ' .. updated_file_path_with_tags)
-                                assert(unix.rename(path.join(dir, name), updated_file_path_with_tags));
-                            end
-                        end
-                        for _, v in ipairs(replacements) do
-                            local repl_tags = v[1]
-                            local repl_index = v[2]
-                            if arrayEqual(repl_tags, tags) then
-                                Log(kLogInfo, 'Replacing file ' .. path.join(dir, name))
-                                Barf(path.join(dir, name), replacement_files[repl_index + 1])
-                            end
-                        end
-                    end
-                end
+local resource_files = ProjectFiles.findFiles(app_info, 'resource')
+for _, file_info in ipairs(resource_files) do
+    local file_path = path.join(file_info.dir, file_info.name)
+    local root_fname, tags = ResourceVariants.findTags(file_info.name);
+    if root_fname == file_name then
+        for _, v in ipairs(variants) do
+            local old_tags = v[1]
+            local new_tags = v[2]
+            if arrayEqual(old_tags, tags) then
+                local updated_file_path_with_tags = path.join(file_info.dir, ResourceVariants.getFileName(updated_file_name, new_tags));
+                Log(kLogInfo, 'Renaming ' .. file_path .. ' to ' .. updated_file_path_with_tags)
+                assert(unix.rename(file_path, updated_file_path_with_tags));
+            end
+        end
+        for _, v in ipairs(replacements) do
+            local repl_tags = v[1]
+            local repl_index = v[2]
+            if arrayEqual(repl_tags, tags) then
+                Log(kLogInfo, 'Replacing file ' .. file_path)
+                Barf(file_path, replacement_files[repl_index + 1])
             end
         end
     end
 end
-
-readdir(nil, "unknown");
 
 if file ~= nil and new_tags ~= nil then
     local new_tag_ids = DecodeJson(new_tags.value)--[[@as number[] ]];
@@ -139,8 +125,6 @@ if file ~= nil and new_tags ~= nil then
     Log(kLogInfo, 'Creating new file ' .. new_file_path)
     Barf(new_file_path, file.value)
 end
-
---TODO: response
 
 SetStatus(200)
 SetHeader('Content-Type', 'application/json; charset=utf-8')

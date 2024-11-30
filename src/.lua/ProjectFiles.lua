@@ -2,6 +2,8 @@ local ProjectFiles = {}
 
 ---@alias TargetPlatform 'aplite' | 'basalt' | 'chalk' | 'diorite' | 'emery'
 
+---@alias ProjectFileTarget 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource' | 'manifest' | 'wscript'
+
 ---@alias MediaItem {
     ---file: string,
     ---name: string,
@@ -109,7 +111,10 @@ end
 
 ---@param app_info AppInfo
 ---@param dir string
+---@return ProjectFileTarget | nil
 function ProjectFiles.getFileTarget(app_info, dir)
+
+    ---@type ProjectFileTarget | nil
     local target = nil;
 
     if app_info.projectType == 'package' and dir == 'src/resources' then
@@ -150,7 +155,7 @@ function ProjectFiles.getFileTarget(app_info, dir)
 end
 
 ---@param app_info AppInfo
----@param target 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource'
+---@param target ProjectFileTarget
 ---@param file_name string
 function ProjectFiles.isValidExtension(app_info, target, file_name)
 
@@ -170,44 +175,58 @@ function ProjectFiles.isValidExtension(app_info, target, file_name)
 end
 
 ---@param app_info AppInfo
----@param target_dir string
-function ProjectFiles.copyTo(app_info, target_dir)
+---@param find_target ProjectFileTarget | 'all'
+---@return { dir: string, name: string, target: ProjectFileTarget }[]
+function ProjectFiles.findFiles(app_info, find_target)
+
+    ---@type { dir: string, name: string, target: ProjectFileTarget }[]
+    local result = {}
 
     ---@param dir string
-    ---@param target 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource'
-    local function copy_project_files (dir, target)
-        for name, kind in assert(unix.opendir(dir)) do
+    ---@param target ProjectFileTarget
+    local function findRecursive(dir, target)
+        for name, kind in assert(unix.opendir(dir or '.')) do
             if string.sub(name, 1, 1) ~= '.' then
                 if kind == unix.DT_DIR then
-                    local child_dir = ''
-                    if dir == '.' then
-                        child_dir = name
-                    else
-                        child_dir = path.join(dir, name)
-                    end
-
-                    local child_target = ProjectFiles.getFileTarget(app_info, dir);
-                    copy_project_files(child_dir, child_target)
+                    local child_target = ProjectFiles.getFileTarget(app_info, dir)
+                    local child_dir = path.join(dir, name)
+                    findRecursive(child_dir, child_target)
                 elseif kind == unix.DT_REG then
-                    local base_dir = dir
-                    if base_dir == '.' then
-                        base_dir = ''
+                    local file_target = target
+                    if not dir and name == 'wscript' then
+                        file_target = 'wscript'
+                    elseif not dir and (name == 'appinfo.json' or name == 'package.json') then
+                        file_target = 'manifest'
                     end
-                    local is_package_json = base_dir == '' and name == 'package.json';
-                    local is_appinfo_json = base_dir == '' and name == 'appinfo.json';
-                    local is_wscript = base_dir == '' and name == 'wscript';
-                    if is_package_json or is_appinfo_json or is_wscript or target ~= 'unknown' then
-                        Log(kLogInfo, 'Copying from ' .. path.join(base_dir, name) .. ' to ' .. path.join(target_dir, base_dir, name))
-                        assert(unix.makedirs(path.join(target_dir, base_dir)))
-                        local contents = assert(Slurp(path.join(base_dir, name)))
-                        assert(Barf(path.join(target_dir, base_dir, name), contents))
+                    if file_target == find_target or find_target == 'all' then
+                        table.insert(result, { dir = dir, name = name, target = file_target })
                     end
                 end
             end
         end
     end
 
-    copy_project_files('.', 'unknown')
+    findRecursive(nil, 'unknown')
+
+    return result;
+end
+
+---@param app_info AppInfo
+---@param target_dir string
+function ProjectFiles.copyTo(app_info, target_dir)
+
+    local file_list = ProjectFiles.findFiles(app_info, 'all')
+
+    for _, file_info in ipairs(file_list) do
+        if file_info.target ~= 'unknown' then
+            local file_path = path.join(file_info.dir, file_info.name);
+            local target_file_path = path.join(target_dir, file_path)
+            Log(kLogInfo, 'Copying from ' .. file_path .. ' to ' .. target_file_path)
+            assert(unix.makedirs(path.join(target_dir, file_info.dir)))
+            local contents = assert(Slurp(file_path))
+            assert(Barf(target_file_path, contents))
+        end
+    end
 
 end
 
