@@ -16,7 +16,7 @@ local all_files = ProjectFiles.findFiles(app_info, 'all')
 local files = {};
 local resource_variants = {};
 for _, file_info in ipairs(all_files) do
-    local file_path = path.join(file_info.dir, file_info.name)
+    local file_path = assert(path.join(file_info.dir, file_info.name))
 
     if file_info.target == 'resource' then
 
@@ -43,12 +43,16 @@ for _, file_info in ipairs(all_files) do
             table.insert(resource_variants[file_info.name], { [0] = false });
         end
 
-    elseif file_info.target ~= 'unknown' then
+    elseif file_info.target ~= 'unknown' and file_info.target ~= 'wscript' and file_info.target ~= 'manifest' then
 
         if ProjectFiles.isValidExtension(app_info, file_info.target, file_info.name) then
+            local path_under_src = file_path
+            if path_under_src:sub(1, 4) == 'src/' then
+                path_under_src = path_under_src:sub(5)
+            end
             local stat = assert(unix.stat(file_path));
             table.insert(files, {
-                name = file_info.name,
+                name = path_under_src,
                 target = file_info.target,
                 file_path = file_path,
                 lastModified = stat:mtim()

@@ -71,7 +71,7 @@ CloudPebble.Compile = (function() {
             // Make the links do something.
             log.find('.filename-link').click(function() {
                 var thing = $(this);
-                var filename = thing.data('filename').replace(/^\//, '');
+                var filename = thing.data('filename').replace(/^\/pebble\/assembled\//, '').replace(/^\//, '');
                 var line = parseInt(thing.data('line'), 10);
                 CloudPebble.Editor.GoTo({file_path: filename}, line - 1, 0);
             });

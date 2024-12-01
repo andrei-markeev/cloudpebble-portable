@@ -15,7 +15,6 @@ CloudPebble Portable is aiming to be small and self-contained. The application i
     - [ ] 🟡 on Windows (via WSL and chroot)
         - [x] 🟢 Pebble C SDK
         - [x] 🟢 PebbleJS
-        - [ ] 🔴 SimpleJS
         - [ ] 🔴 Pebble Package
         - [ ] 🔴 RockyJS
 - [ ] 🔴 Emulator doesn't work

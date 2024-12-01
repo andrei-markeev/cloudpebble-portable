@@ -1190,12 +1190,7 @@ CloudPebble.Editor = (function() {
     function go_to(file_info, line, ch) {
         // Assume that we passed the actual file if the lastModified key is present.
         // Otherwise, look up the file by they keys.
-        var file = file_info.lastModified ? file_info : project_source_files.find(f => {
-            for (let [k, v] of Object.values(file_info))
-                if (f[k] !== v) return false;
-
-            return true;
-        });
+        var file = file_info.lastModified ? file_info : Object.values(project_source_files).find(f => file_info.file_path === f.file_path);
         if(!file) {
             return Promise.reject(new Error(gettext("File not found")));
         }

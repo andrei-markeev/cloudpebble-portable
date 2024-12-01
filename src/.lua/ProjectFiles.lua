@@ -4,6 +4,8 @@ local ProjectFiles = {}
 
 ---@alias ProjectFileTarget 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource' | 'manifest' | 'wscript'
 
+---@alias Capability 'health' | 'location' | 'configurable'
+
 ---@alias MediaItem {
     ---file: string,
     ---name: string,
@@ -29,7 +31,7 @@ local ProjectFiles = {}
     ---versionLabel: string,
     ---watchapp: { watchface: boolean, hiddenApp: boolean },
     ---appKeys: [string, number][], 
-    ---capabilities: string[],
+    ---capabilities: Capability[],
     ---sdkVersion: string,
     ---targetPlatforms: ('aplite' | 'basalt' | 'chalk' | 'diorite' | 'emery')[],
     ---enableMultiJS: boolean,
@@ -71,13 +73,17 @@ function ProjectFiles.getAppInfo()
         end
     end
 
+    if app_info and not app_info.projectType then
+        app_info.projectType = 'native'
+    end
+
     return app_info, err
 end
 
 ---@param app_info AppInfo
 function ProjectFiles.saveAppInfo(app_info)
     if path.exists('appinfo.json') then
-        Barf('appinfo.json', EncodeJson(app_info))
+        Barf('appinfo.json', EncodeJson(app_info, { pretty = true }))
         return true
     end
 
@@ -188,8 +194,8 @@ function ProjectFiles.findFiles(app_info, find_target)
         for name, kind in assert(unix.opendir(dir or '.')) do
             if string.sub(name, 1, 1) ~= '.' then
                 if kind == unix.DT_DIR then
-                    local child_target = ProjectFiles.getFileTarget(app_info, dir)
                     local child_dir = path.join(dir, name)
+                    local child_target = ProjectFiles.getFileTarget(app_info, child_dir) or target
                     findRecursive(child_dir, child_target)
                 elseif kind == unix.DT_REG then
                     local file_target = target
