@@ -59,7 +59,7 @@
 
             // Find our block by searching for BIG ANGRY COMMENTS.
             var start = source.indexOf(this._beginBlock);
-            var end = source.indexOf(this._endBlock + "\n");
+            var end = source.indexOf(this._endBlock);
             var index;
             var prefix = "";
 

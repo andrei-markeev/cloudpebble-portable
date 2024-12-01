@@ -282,7 +282,7 @@
             }
             var resource = CloudPebble.Resources.GetResourceByID(this._value);
             if(resource) {
-                return '/ide/project/' + PROJECT_ID + '/resource/' + resource.id + '/0/get';
+                return '/api/resource-variant.lua?file_name=' + resource.file_name + '&kind=' + resource.kind;
             } else {
                 return null;
             }

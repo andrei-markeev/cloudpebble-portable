@@ -9,6 +9,11 @@ end
 local target = GetParam('target');
 if target == nil then target = 'app' end
 
+local content = GetParam('content');
+if not content then
+    content = ''
+end
+
 local app_info, err = ProjectFiles.getAppInfo()
 if app_info == nil then
     SetStatus(200)
@@ -58,7 +63,7 @@ end
 unix.makedirs(project_dir);
 local file_path = project_dir .. '/' .. file_name;
 
-local fd, err = unix.open(file_path, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, 0664);
+local _, err = Barf(file_path, content);
 if err ~= nil then
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')
@@ -72,15 +77,18 @@ if err ~= nil then
     }))
     return;
 end
-unix.close(fd);
 
+local path_under_src = file_path
+if path_under_src:sub(1, 4) == 'src/' then
+    path_under_src = path_under_src:sub(5)
+end
 
 SetStatus(200)
 SetHeader('Content-Type', 'application/json; charset=utf-8')
 Write(EncodeJson({
     success=true,
     file={
-        name=file_name,
+        name=path_under_src,
         target=target,
         file_path=file_path
     }
