@@ -37,6 +37,7 @@ local ProjectFiles = {}
     ---enableMultiJS: boolean,
     ---menu_icon: string | nil,
     ---resources: { media: MediaItem[] },
+    ---dependencies: { [string]: string },
 ---}
 
 ---@return AppInfo
@@ -56,7 +57,7 @@ function ProjectFiles.getAppInfo()
     ---@type AppInfo
     local app_info;
 
-    local file_object--[[@type { name: string, author: string, version: string, pebble: any } ]], err = DecodeJson(file_contents)--[[@as any]];
+    local file_object--[[@type { name: string, author: string, version: string, dependencies: table, pebble: any } ]], err = DecodeJson(file_contents)--[[@as any]];
     if file_object ~= nil then
         if appinfo_filename == 'package.json' then
             if file_object.pebble == nil then
@@ -66,6 +67,7 @@ function ProjectFiles.getAppInfo()
             app_info.shortName = file_object.name
             app_info.companyName = file_object.author
             app_info.versionLabel = file_object.version
+            app_info.dependencies = file_object.dependencies
             app_info.longName = file_object.pebble.displayName
             app_info.appKeys = file_object.pebble.messageKeys
         else
@@ -82,12 +84,20 @@ end
 
 ---@param app_info AppInfo
 function ProjectFiles.saveAppInfo(app_info)
-    if path.exists('appinfo.json') then
-        Barf('appinfo.json', EncodeJson(app_info, { pretty = true }))
+    return ProjectFiles.saveAppInfoTo(app_info, nil);
+end
+
+---@param app_info AppInfo
+---@param base_dir string
+function ProjectFiles.saveAppInfoTo(app_info, base_dir)
+    local app_info_path = path.join(base_dir, 'appinfo.json')
+    local package_json_path = path.join(base_dir, 'package.json')
+    if path.exists(app_info_path) then
+        Barf(app_info_path, assert(EncodeJson(app_info, { pretty = true }))--[[@as string]])
         return true
     end
 
-    local file_contents, err = Slurp('package.json')
+    local file_contents, err = Slurp(package_json_path)
     if err ~= nil then
         return false, err
     end
@@ -97,10 +107,11 @@ function ProjectFiles.saveAppInfo(app_info)
         return false, err
     end
 
-    local pkgjson_object = file_object--[[@as { name: string, author: string, version: string, pebble: any }]]
+    local pkgjson_object = file_object--[[@as { name: string, author: string, version: string, dependencies: table, pebble: any }]]
     pkgjson_object.name = app_info.shortName
     pkgjson_object.author = app_info.companyName
     pkgjson_object.version = app_info.versionLabel
+    pkgjson_object.dependencies = app_info.dependencies
     pkgjson_object.pebble.uuid = app_info.uuid
     pkgjson_object.pebble.displayName = app_info.longName
     pkgjson_object.pebble.projectType = app_info.projectType
@@ -111,48 +122,48 @@ function ProjectFiles.saveAppInfo(app_info)
     pkgjson_object.pebble.enableMultiJS = app_info.enableMultiJS
     pkgjson_object.pebble.targetPlatforms = app_info.targetPlatforms
     pkgjson_object.pebble.resources = app_info.resources
-    Barf('package.json', assert(EncodeJson(pkgjson_object, { pretty = true })--[[@as string]]))
+    Barf(package_json_path, assert(EncodeJson(pkgjson_object, { pretty = true })--[[@as string]]))
 
 end
 
 ---@param app_info AppInfo
 ---@param dir string
 ---@return ProjectFileTarget | nil
-function ProjectFiles.getFileTarget(app_info, dir)
+function ProjectFiles.getFileTarget(app_info, dir, base_dir)
 
     ---@type ProjectFileTarget | nil
     local target = nil;
 
-    if app_info.projectType == 'package' and dir == 'src/resources' then
+    if app_info.projectType == 'package' and dir == path.join(base_dir, 'src/resources') then
         target = 'resource'
-    elseif app_info.projectType ~= 'package' and dir == 'resources' then
+    elseif app_info.projectType ~= 'package' and dir == path.join(base_dir, 'resources') then
         target = 'resource'
     elseif app_info.projectType == 'native' then
         if dir == 'src' then
             target = 'app'
-        elseif dir == 'src/pkjs' or dir == 'src/js' then
+        elseif dir == path.join(base_dir, 'src/pkjs') or dir == path.join(base_dir, 'src/js') then
             target = 'pkjs'
-        elseif dir == 'worker_src/c' then
+        elseif dir == path.join(base_dir, 'worker_src/c') then
             target = 'worker'
         end
-    elseif app_info.projectType == 'simplyjs' and dir == 'src/js' then
+    elseif app_info.projectType == 'simplyjs' and dir == path.join(base_dir, 'src/js') then
         target = 'app'
-    elseif app_info.projectType == 'pebblejs' and dir == 'src' then
+    elseif app_info.projectType == 'pebblejs' and dir == path.join(base_dir, 'src') then
         target = 'app'
     elseif app_info.projectType == 'rocky' then
-        if dir == 'src/rocky' then
+        if dir == path.join(base_dir, 'src/rocky') then
             target = 'app'
-        elseif dir == 'src/pkjs' then
+        elseif dir == path.join(base_dir, 'src/pkjs') then
             target = 'pkjs'
-        elseif dir == 'src/common' then
+        elseif dir == path.join(base_dir, 'src/common') then
             target = 'common'
         end
     elseif app_info.projectType == 'package' then
-        if dir == 'src/c' then
+        if dir == path.join(base_dir, 'src/c') then
             target = 'app'
-        elseif dir == 'src/js' then
+        elseif dir == path.join(base_dir, 'src/js') then
             target = 'pkjs'
-        elseif dir == 'include' then
+        elseif dir == path.join(base_dir, 'include') then
             target = 'public'
         end
     end
@@ -184,6 +195,14 @@ end
 ---@param find_target ProjectFileTarget | 'all'
 ---@return { dir: string, name: string, target: ProjectFileTarget }[]
 function ProjectFiles.findFiles(app_info, find_target)
+    return ProjectFiles.findFilesAt(app_info, find_target, nil)
+end
+
+---@param app_info AppInfo
+---@param find_target ProjectFileTarget | 'all'
+---@param base_dir string | nil
+---@return { dir: string, name: string, target: ProjectFileTarget }[]
+function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
 
     ---@type { dir: string, name: string, target: ProjectFileTarget }[]
     local result = {}
@@ -195,7 +214,7 @@ function ProjectFiles.findFiles(app_info, find_target)
             if string.sub(name, 1, 1) ~= '.' then
                 if kind == unix.DT_DIR then
                     local child_dir = path.join(dir, name)
-                    local child_target = ProjectFiles.getFileTarget(app_info, child_dir) or target
+                    local child_target = ProjectFiles.getFileTarget(app_info, child_dir, base_dir) or target
                     findRecursive(child_dir, child_target)
                 elseif kind == unix.DT_REG then
                     local file_target = target
@@ -212,7 +231,7 @@ function ProjectFiles.findFiles(app_info, find_target)
         end
     end
 
-    findRecursive(nil, 'unknown')
+    findRecursive(base_dir, 'unknown')
 
     return result;
 end

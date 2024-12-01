@@ -1,5 +1,7 @@
 local ProjectFiles = require('ProjectFiles')
 local DownloadBundle = require('DownloadBundle')
+local NpmInstall = require('NpmInstall')
+local ConcatJavascript = require('ConcatJavascript')
 
 local host_os = GetHostOs();
 if host_os ~= 'WINDOWS' then
@@ -58,6 +60,16 @@ if not path.exists(path.join(rootfs_dir, 'pebble/compile_' .. app_info.projectTy
     return
 end
 
+if app_info.enableMultiJS and app_info.projectType ~= 'native' then
+    SetStatus(200)
+    SetHeader('Content-Type', 'application/json; charset=utf-8')
+    Write(EncodeJson({
+        success = false,
+        error = 'Compilation of projects of type ' .. app_info.projectType .. ' with enableMultiJS is not supported yet!'
+    }))
+    return
+end
+
 local build_uuid = UuidV4();
 
 local build_db_filename = '.pebble/builds/db.json';
@@ -83,8 +95,11 @@ assert(Barf(build_db_filename, EncodeJson(builds)))
 
 local build_log = '.pebble/builds/' .. build_uuid .. '.log';
 
-local function fail_build_if_err(val, err)
-    if val == nil then
+local function assert_fail_build(...)
+    local arg = {...}
+    local val = arg[1]
+    local err = arg[2]
+    if val == nil or val == false then
         current_build.state = 2
         current_build.finished = math.floor(GetTime() * 1000)
         assert(Barf(build_db_filename, EncodeJson(builds)))
@@ -98,18 +113,26 @@ local function fail_build_if_err(val, err)
         end
         error(err)
     end
-    return val, err
+    return table.unpack(arg)
 end
 
 local container_app_dir = path.join(rootfs_dir, 'pebble/app');
 if path.exists(container_app_dir) then
-    fail_build_if_err(unix.rmrf(container_app_dir));
+    assert_fail_build(unix.rmrf(container_app_dir));
 end
-fail_build_if_err(unix.mkdir(container_app_dir));
+assert_fail_build(unix.mkdir(container_app_dir));
 
 ProjectFiles.copyTo(app_info, container_app_dir)
 
-if fail_build_if_err(unix.fork()) ~= 0 then
+if app_info.enableMultiJS and app_info.projectType == 'native' then
+    NpmInstall.installTo(app_info, path.join(container_app_dir, 'src/pkjs'), assert_fail_build)
+    app_info.enableMultiJS = false
+    app_info.dependencies = {}
+    ProjectFiles.saveAppInfoTo(app_info, container_app_dir)
+    ConcatJavascript.concat(app_info, container_app_dir, rootfs_dir, assert_fail_build)
+end
+
+if assert_fail_build(unix.fork()) ~= 0 then
 
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')
@@ -131,7 +154,7 @@ else
             return
         end
 
-        if fail_build_if_err(unix.fork()) == 0 then
+        if assert_fail_build(unix.fork()) == 0 then
 
             local fd = unix.open(build_log, unix.O_WRONLY | unix.O_CREAT, 0644)
             unix.dup(fd, 1)
@@ -156,18 +179,18 @@ else
             unix.exit(127)
         else
             Log(kLogWarn, 'waiting for subprocess')
-            fail_build_if_err(unix.wait())
+            assert_fail_build(unix.wait())
             Log(kLogWarn, 'done waiting')
 
             local build_dir = path.join(rootfs_dir, 'pebble/assembled/build');
-            fail_build_if_err(unix.rename(path.join(build_dir, 'assembled.pbw'), '.pebble/builds/' .. build_uuid .. '.pbw'))
+            assert_fail_build(unix.rename(path.join(build_dir, 'assembled.pbw'), '.pebble/builds/' .. build_uuid .. '.pbw'))
             local sizeInfo = {}
             for _, p in ipairs(app_info.targetPlatforms) do
-                local app_stat = fail_build_if_err(unix.stat(path.join(build_dir, p, 'pebble-app.bin')))
-                local res_stat = fail_build_if_err(unix.stat(path.join(build_dir, p, 'app_resources.pbpack')))
+                local app_stat = assert_fail_build(unix.stat(path.join(build_dir, p, 'pebble-app.bin')))
+                local res_stat = assert_fail_build(unix.stat(path.join(build_dir, p, 'app_resources.pbpack')))
                 sizeInfo[p] = { app = app_stat:size(), resources = res_stat:size() }
             end
-            fail_build_if_err(unix.rmrf(path.join(rootfs_dir, 'pebble/assembled')))
+            assert_fail_build(unix.rmrf(path.join(rootfs_dir, 'pebble/assembled')))
             current_build.state = 3
             current_build.finished = math.floor(GetTime() * 1000)
             current_build.sizes = sizeInfo

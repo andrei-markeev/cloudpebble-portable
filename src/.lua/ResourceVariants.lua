@@ -11,7 +11,6 @@ local ResourceVariants = {}
     ---space_optimisation?: 'storage' | 'memory',
 ---}
 
-local VARIANT_DEFAULT = 0
 local VARIANT_MONOCHROME = 1
 local VARIANT_COLOUR = 2
 local VARIANT_RECT = 3
