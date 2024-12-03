@@ -623,7 +623,7 @@ CloudPebble.Compile = (function() {
                             //    virtual: SharedPebble.isVirtual()
                             //});
                         }, 30000);
-                        pebble.install_app(mLastBuild.download);
+                        pebble.install_app('/api/download-pbw.lua?uuid=' + mLastBuild.uuid);
                         var expectedBytes = (size.binary + size.worker + size.resources);
                         pebble.on('install:progress', function(bytes) {
                             clearTimeout(install_timer);

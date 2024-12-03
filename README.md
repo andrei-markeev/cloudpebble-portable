@@ -2,7 +2,7 @@
 
 Simplified reincarnation of CloudPebble. Create, debug and package Pebble apps and watchfaces.
 
-CloudPebble Portable is aiming to be small and self-contained. The application is distributed as a single executable based on [redbean web server](https://redbean.dev). The size is ~10MB at the moment, but in order to compile your watch app, it will need to download additional ~75MB archive, which unpacks to ~250MB (this is still very small comparing to any other option, e.g. available Docker images are almost 1GB _archived_).
+CloudPebble Portable is aiming to be small and self-contained. The application is distributed as a single executable based on [redbean web server](https://redbean.dev). The size is ~10MB at the moment, but in order to compile your watch app, it will need to download additional ~75MB archive, which unpacks to ~250MB (this is still very small comparing to any other option, e.g. available Docker images are almost 1GB _compressed_).
 
 ### Status
 

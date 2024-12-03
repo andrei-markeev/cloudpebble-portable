@@ -241,7 +241,7 @@ Pebble = function(proxy, token) {
         if(query_parts[1] != '') {
             query_parts[1] += '&';
         }
-        query_parts[1] += 'return_to=' + escape(location.protocol + '//' + location.host + '/ide/emulator/config?');
+        query_parts[1] += 'return_to=' + escape(location.protocol + '//' + location.host + '/qemu-config-callback.html?');
         var new_url = query_parts.join('?');
         if(hash_parts.length > 1) {
             new_url += '#' + hash_parts[1];

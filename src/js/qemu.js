@@ -8,11 +8,10 @@
     window.QEmu = function (platform, canvas, button_map) {
         var self = this;
         var mCanvas = $(canvas);
-        var mToken = null;
-        var mVNCPort = null;
-        var mWSPort = null;
+        var mToken = 'local';
+        var mVNCPort = 5901;
         var mInstanceID = null;
-        var mHost = null;
+        var mHost = 'localhost';
         var mRFB = null;
         var mSecure = false;
         var mPendingPromise = null;
@@ -20,45 +19,14 @@
         var mSplashURL = null;
         var mGrabbedKeyboard = false;
         var mPingTimer = null;
-        var mAPIPort = null;
+        var mAPIPort = 5902;
         var mButtonMap = button_map;
         var mPlatform = platform;
 
         _.extend(this, Backbone.Events);
 
-        function spawn() {
-            console.log(mPlatform);
-            // First verify that this is actually plausible.
-            if (!window.WebSocket) {
-                return Promise.reject(new Error(gettext("You need a browser that supports websockets.")));
-            }
-            var tz_offset = -(new Date()).getTimezoneOffset(); // Negative because JS does timezones backwards.
-            return Ajax.Post('/ide/emulator/launch', {platform: mPlatform, token: USER_SETTINGS.token, tz_offset: tz_offset})
-                .then(function (data) {
-                    console.log(data);
-                    mHost = data.host;
-                    mVNCPort = data.vnc_ws_port;
-                    mWSPort = data.ws_port;
-                    mSecure = data.secure;
-                    mInstanceID = data.uuid;
-                    mToken = data.token;
-                    mAPIPort = data.api_port;
-                });
-        }
-
         function buildURL(endpoint) {
             return (mSecure ? 'https': 'http') + '://' + mHost + ':' + mAPIPort + '/qemu/' + mInstanceID + '/' + endpoint;
-        }
-
-        function sendPing() {
-            (new Ajax.Wrapper('alive')).post(buildURL('ping'))
-                .then(function() {
-                    console.log('qemu ping!');
-                })
-                .catch(function() {
-                    console.log('ping failed.');
-                    self.disconnect();
-                });
         }
 
         var mKickInterval = null;
@@ -85,7 +53,7 @@
                 if (mPendingPromise) {
                     if (state == 'normal') {
                         mRFB.get_keyboard().ungrab();
-                        mPingTimer = setInterval(sendPing, 100000);
+                        //mPingTimer = setInterval(sendPing, 100000);
                         setTimeout(function () {
                             resolve();
                             mPendingPromise = null;
@@ -170,7 +138,7 @@
                         data: URL_BOOT_IMG[mPlatform].url
                     };
                     mRFB.get_display().clear();
-                    mRFB.connect(mHost, mAPIPort, mToken.substr(0, 8), 'qemu/' + mInstanceID + '/ws/vnc');
+                    mRFB.connect(mHost, mVNCPort);
                 });
             });
         }
@@ -270,11 +238,10 @@
                 return mPendingPromise;
             }
             showLaunchSplash();
-            var promise = spawn()
-                .then(function() {
-                    //CloudPebble.Analytics.addEvent('qemu_launched', {success: true});
-                    return startVNC();
-                })
+            if (!window.WebSocket) {
+                return Promise.reject(new Error(gettext("You need a browser that supports websockets.")));
+            }
+            var promise = startVNC()
                 .catch(function(error) {
                     //CloudPebble.Analytics.addEvent('qemu_launched', {success: false, reason: error.message});
                     throw error;
@@ -298,7 +265,7 @@
         };
 
         this.getWebsocketURL = function() {
-            return (mSecure ? 'wss' : 'ws') + '://' + mHost + ':' + mAPIPort + '/qemu/' + mInstanceID + '/ws/phone';
+            return (mSecure ? 'wss' : 'ws') + '://' + mHost + ':' + mAPIPort + '/';
         };
 
         this.getToken = function() {

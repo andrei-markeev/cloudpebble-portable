@@ -42,11 +42,6 @@ local function StartWindows(container_dir)
     if assert(unix.fork()) == 0 then
         Barf(status_filename, 'Downloading Pebble SDK container bundle...');
 
-        local fd = unix.open('.pebble/download.log', unix.O_WRONLY | unix.O_CREAT, 0644)
-        unix.dup(fd, 1)
-        unix.dup(fd, 2)
-        unix.close(fd)
-
         local _, err = unix.execve(curl_path, {
             curl_path,
             '-Ls',
@@ -77,13 +72,6 @@ local function StartWindows(container_dir)
     if assert(unix.fork()) == 0 then
         Barf(status_filename, 'Unpacking Pebble SDK container bundle...');
 
-        Log(kLogInfo, tar_path)
-        Log(kLogInfo, path.join(container_dir, 'pebblesdk-container.tar.gz'))
-        -- local fd = unix.open('.pebble/extract.log', unix.O_WRONLY | unix.O_CREAT, 0644)
-        -- unix.dup(fd, 1)
-        -- unix.dup(fd, 2)
-        -- unix.close(fd)
-
         local _, err = unix.execve(tar_path, {
             tar_path,
             'zxf',
@@ -111,6 +99,8 @@ local function StartWindows(container_dir)
         return
     end
     Log(kLogInfo, 'done waiting: tar finished executing')
+
+    assert(unix.unlink(path.join(container_dir, 'pebblesdk-container.tar.gz')))
 
     Barf(status_filename, 'ready');
 end

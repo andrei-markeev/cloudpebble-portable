@@ -130,6 +130,8 @@ if app_info.enableMultiJS and app_info.projectType == 'native' then
     app_info.dependencies = {}
     ProjectFiles.saveAppInfoTo(app_info, container_app_dir)
     ConcatJavascript.concat(app_info, container_app_dir, rootfs_dir, assert_fail_build)
+    -- TODO: patch wscript
+    -- ctx.pbl_bundle(binaries=binaries, js='src/js/pebble-js-app.js')
 end
 
 if assert_fail_build(unix.fork()) ~= 0 then
