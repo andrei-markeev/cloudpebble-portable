@@ -14,22 +14,10 @@ if host_os ~= 'WINDOWS' then
     return
 end
 
-local home_dir;
-if host_os == 'WINDOWS' then
-    home_dir = os.getenv("USERPROFILE");
-else
-    home_dir = os.getenv("HOME");
-end
-
-if home_dir == nil then
-    Log(kLogWarn, 'User home directory not found!')
-    home_dir = ''
-end
-
-local container_dir = path.join(home_dir, '.pebble/pebblesdk-container')
+local container_dir = DownloadBundle.getContainerDir()
 local rootfs_dir = path.join(container_dir, 'rootfs')
 
-local status, text = DownloadBundle.Check(container_dir)
+local status, text = DownloadBundle.check(container_dir)
 if status ~= 'ready' then
 
     SetStatus(200)

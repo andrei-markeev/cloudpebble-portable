@@ -23,6 +23,7 @@ CloudPebble.Editor = (function() {
         CloudPebble.Prompts.Progress.Show(gettext("Saving..."));
         CloudPebble.Editor.SaveAll().then(function() {
             CloudPebble.Prompts.Progress.Show(gettext("Compiling..."));
+            // TODO: progress bar is lost, fix it
             return CloudPebble.Compile.RunBuild()
         }).then(function (success) {
             CloudPebble.Prompts.Progress.Hide();

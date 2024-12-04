@@ -19,14 +19,28 @@
         var mSplashURL = null;
         var mGrabbedKeyboard = false;
         var mPingTimer = null;
-        var mAPIPort = 5902;
+        var mPyPKJSPort = 5902;
         var mButtonMap = button_map;
         var mPlatform = platform;
 
         _.extend(this, Backbone.Events);
 
-        function buildURL(endpoint) {
-            return (mSecure ? 'https': 'http') + '://' + mHost + ':' + mAPIPort + '/qemu/' + mInstanceID + '/' + endpoint;
+        function spawn() {
+            if (!window.WebSocket) {
+                return Promise.reject(new Error(gettext("You need a browser that supports websockets.")));
+            }
+
+            // TODO: handle progress
+
+            var tz_offset = -(new Date()).getTimezoneOffset(); // Negative because JS does timezones backwards.
+            return Ajax.Post('/api/launch-emulator.lua', { platform: mPlatform, token: USER_SETTINGS.token, tz_offset: tz_offset })
+                .then(function (data) {
+                    mVNCPort = data.vnc_ws_port;
+                    mPyPKJSPort = data.pypkjs_port;
+
+                    if (data.spawned)
+                        return new Promise(function(resolve) { setTimeout(resolve, 10000) });
+                });
         }
 
         var mKickInterval = null;
@@ -41,7 +55,7 @@
         var killPromise = null;
         function killEmulator() {
             if (!killPromise) {
-                killPromise = (new Ajax.Wrapper('status')).post(buildURL('kill')).finally(function() {
+                killPromise = Ajax.Post('/api/stop-emulator.lua').finally(function() {
                     killPromise = null;
                 });
             }
@@ -53,7 +67,6 @@
                 if (mPendingPromise) {
                     if (state == 'normal') {
                         mRFB.get_keyboard().ungrab();
-                        //mPingTimer = setInterval(sendPing, 100000);
                         setTimeout(function () {
                             resolve();
                             mPendingPromise = null;
@@ -150,6 +163,7 @@
                 Util.load_scripts(URL_VNC_INCLUDES);
                 window.onscriptsload = function() {
                     console.log("vnc ready");
+                    sLoadedScripts = true;
                     resolve();
                 }
             });
@@ -238,10 +252,9 @@
                 return mPendingPromise;
             }
             showLaunchSplash();
-            if (!window.WebSocket) {
-                return Promise.reject(new Error(gettext("You need a browser that supports websockets.")));
-            }
-            var promise = startVNC()
+            var promise = spawn().then(function() {
+                    return startVNC()
+                })
                 .catch(function(error) {
                     //CloudPebble.Analytics.addEvent('qemu_launched', {success: false, reason: error.message});
                     throw error;
@@ -265,7 +278,7 @@
         };
 
         this.getWebsocketURL = function() {
-            return (mSecure ? 'wss' : 'ws') + '://' + mHost + ':' + mAPIPort + '/';
+            return (mSecure ? 'wss' : 'ws') + '://' + mHost + ':' + mPyPKJSPort + '/';
         };
 
         this.getToken = function() {

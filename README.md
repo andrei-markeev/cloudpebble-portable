@@ -2,7 +2,7 @@
 
 Simplified reincarnation of CloudPebble. Create, debug and package Pebble apps and watchfaces.
 
-CloudPebble Portable is aiming to be small and self-contained. The application is distributed as a single executable based on [redbean web server](https://redbean.dev). The size is ~10MB at the moment, but in order to compile your watch app, it will need to download additional ~75MB archive, which unpacks to ~250MB (this is still very small comparing to any other option, e.g. available Docker images are almost 1GB _compressed_).
+CloudPebble Portable is aiming to be small and self-contained. The application is distributed as a single executable based on [redbean web server](https://redbean.dev). The size is ~10MB at the moment, but in order to compile your watch app, it will need to download additional ~125MB archive, which unpacks to ~400MB (this is still quite small comparing to other options, e.g. available Docker images are almost 1GB _compressed_).
 
 ### Status
 
@@ -17,9 +17,18 @@ CloudPebble Portable is aiming to be small and self-contained. The application i
         - [x] 🟢 PebbleJS
         - [ ] 🔴 Pebble Package
         - [ ] 🔴 RockyJS
-- [ ] 🔴 Emulator doesn't work
+    - [ ] 🔴 on MacOS
+    - [ ] 🔴 on Linux
+- [ ] 🟡 Emulator works partially:
+    - [ ] 🟡 on Windows (via WSL and chroot) - see 'Known bugs'
+    - [ ] 🔴 on MacOS
+    - [ ] 🔴 on Linux
 - [ ] 🔴 Dependencies management not implemented yet
 - [ ] 🔴 Project settings not implemented yet
+
+#### Known bugs
+
+- In Emulator on Windows, DNS resolution doesn't work for PebbleKit JS apps. Workaround is to put necessary hosts manually to %USERPROFILE%/.pebble/pebblesdk-container/rootfs/etc/hosts
 
 ### Usage
 
@@ -31,7 +40,7 @@ Run `./init.sh` (one-time): it downloads redbean server and zip tool binaries fr
 
 Run `./build.sh`. It adds the source files into redbean executable. Result will appear in the `dist` folder.
 
-Put some Pebble watchapp or watchface files into the same folder and run.
+Then you can put some Pebble watchapp or watchface project into the dist folder, cd there and run `./cloudpebble-portable.com`.
 
 I usually do `cd dist` and then `../build.sh && ./cloudpebble-portable.com` from there.
 Then test it by navigating to `http://localhost:8080`. Then if we made some more changes and need to refresh, `Ctrl+D` and run same command again.
