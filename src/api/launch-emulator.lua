@@ -95,6 +95,10 @@ if host_os == 'WINDOWS' then
         local phonesim_pid = unix.fork()
         if phonesim_pid == 0 then
 
+            local fd = unix.open('/dev/null', unix.O_RDONLY)
+            unix.dup(fd, 0);
+            unix.close(fd);
+
             local phonesim_log = '.pebble/phonesim.log'
             local fd = unix.open(phonesim_log, unix.O_WRONLY | unix.O_CREAT, 0644)
             unix.dup(fd, 1)

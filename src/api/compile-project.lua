@@ -104,6 +104,18 @@ local function assert_fail_build(...)
     return table.unpack(arg)
 end
 
+if assert_fail_build(unix.fork()) ~= 0 then
+
+    SetStatus(200)
+    SetHeader('Content-Type', 'application/json; charset=utf-8')
+    Write(EncodeJson({
+        success = true
+    }))
+    return
+end
+
+-- in the child process
+
 local container_app_dir = path.join(rootfs_dir, 'pebble/app');
 if path.exists(container_app_dir) then
     assert_fail_build(unix.rmrf(container_app_dir));
@@ -122,71 +134,60 @@ if app_info.enableMultiJS and app_info.projectType == 'native' then
     -- ctx.pbl_bundle(binaries=binaries, js='src/js/pebble-js-app.js')
 end
 
-if assert_fail_build(unix.fork()) ~= 0 then
+if host_os == 'WINDOWS' then
 
-    SetStatus(200)
-    SetHeader('Content-Type', 'application/json; charset=utf-8')
-    Write(EncodeJson({
-        success = true
-    }))
-    return
-else
+    local wsl_path = '/C/WINDOWS/system32/wsl.exe';
+    if not path.exists(wsl_path) then
+        Log(kLogError, 'Fatal error: WSL not found at ' .. wsl_path .. '!');
+        assert(Barf(build_log, 'Fatal error: WSL not found at ' .. wsl_path .. '!\n'))
+        current_build.state = 2
+        current_build.finished = math.floor(GetTime() * 1000)
+        assert(Barf(build_db_filename, EncodeJson(builds)))
+        return
+    end
 
-    if host_os == 'WINDOWS' then
+    if assert_fail_build(unix.fork()) == 0 then
 
-        local wsl_path = '/C/WINDOWS/system32/wsl.exe';
-        if not path.exists(wsl_path) then
-            Log(kLogError, 'Fatal error: WSL not found at ' .. wsl_path .. '!');
-            assert(Barf(build_log, 'Fatal error: WSL not found at ' .. wsl_path .. '!\n'))
+        local fd = unix.open(build_log, unix.O_WRONLY | unix.O_CREAT, 0644)
+        unix.dup(fd, 1)
+        unix.dup(fd, 2)
+        unix.close(fd)
+
+        local _, err = unix.execve(wsl_path, {
+            wsl_path,
+            '--user', 'root',
+            '--',
+            'sh', '-c', 'chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/compile_' .. app_info.projectType .. '.sh'
+        })
+
+        if err ~= nil then
+            print('Fatal error: failed to execute WSL command: ' .. err:name() .. ' ' .. err:doc())
             current_build.state = 2
             current_build.finished = math.floor(GetTime() * 1000)
             assert(Barf(build_db_filename, EncodeJson(builds)))
             return
         end
 
-        if assert_fail_build(unix.fork()) == 0 then
-
-            local fd = unix.open(build_log, unix.O_WRONLY | unix.O_CREAT, 0644)
-            unix.dup(fd, 1)
-            unix.dup(fd, 2)
-            unix.close(fd)
-
-            local _, err = unix.execve(wsl_path, {
-                wsl_path,
-                '--user', 'root',
-                '--',
-                'sh', '-c', 'chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/compile_' .. app_info.projectType .. '.sh'
-            })
-
-            if err ~= nil then
-                print('Fatal error: failed to execute WSL command: ' .. err:name() .. ' ' .. err:doc())
-                current_build.state = 2
-                current_build.finished = math.floor(GetTime() * 1000)
-                assert(Barf(build_db_filename, EncodeJson(builds)))
-                return
-            end
-
-            unix.exit(127)
-        else
-            Log(kLogWarn, 'waiting for subprocess')
-            assert_fail_build(unix.wait())
-            Log(kLogWarn, 'done waiting')
-
-            local build_dir = path.join(rootfs_dir, 'pebble/assembled/build');
-            assert_fail_build(unix.rename(path.join(build_dir, 'assembled.pbw'), '.pebble/builds/' .. build_uuid .. '.pbw'))
-            local sizeInfo = {}
-            for _, p in ipairs(app_info.targetPlatforms) do
-                local app_stat = assert_fail_build(unix.stat(path.join(build_dir, p, 'pebble-app.bin')))
-                local res_stat = assert_fail_build(unix.stat(path.join(build_dir, p, 'app_resources.pbpack')))
-                sizeInfo[p] = { app = app_stat:size(), resources = res_stat:size() }
-            end
-            assert_fail_build(unix.rmrf(path.join(rootfs_dir, 'pebble/assembled')))
-            current_build.state = 3
-            current_build.finished = math.floor(GetTime() * 1000)
-            current_build.sizes = sizeInfo
-            assert(Barf(build_db_filename, EncodeJson(builds)))
-            Log(kLogWarn, 'finalization complete')
-        end
+        unix.exit(127)
     end
+
+    Log(kLogWarn, 'waiting for subprocess')
+    assert_fail_build(unix.wait())
+    Log(kLogWarn, 'done waiting')
+
+    local build_dir = path.join(rootfs_dir, 'pebble/assembled/build');
+    assert_fail_build(unix.rename(path.join(build_dir, 'assembled.pbw'), '.pebble/builds/' .. build_uuid .. '.pbw'))
+    local sizeInfo = {}
+    for _, p in ipairs(app_info.targetPlatforms) do
+        local app_stat = assert_fail_build(unix.stat(path.join(build_dir, p, 'pebble-app.bin')))
+        local res_stat = assert_fail_build(unix.stat(path.join(build_dir, p, 'app_resources.pbpack')))
+        sizeInfo[p] = { app = app_stat:size(), resources = res_stat:size() }
+    end
+    assert_fail_build(unix.rmrf(path.join(rootfs_dir, 'pebble/assembled')))
+    current_build.state = 3
+    current_build.finished = math.floor(GetTime() * 1000)
+    current_build.sizes = sizeInfo
+    assert(Barf(build_db_filename, EncodeJson(builds)))
+    Log(kLogWarn, 'finalization complete')
 
 end

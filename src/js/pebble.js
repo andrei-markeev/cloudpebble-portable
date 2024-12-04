@@ -198,11 +198,10 @@ var SharedPebble = new (function() {
     };
 
     this.disconnect = function(shutdown) {
-        var close_pebble = null;
-        var disconnect_emu = null;
+        var promises = []
 
         if(mPebble) {
-            close_pebble = new Promise(function(resolve) {
+            promises.push(new Promise(function(resolve) {
                 mPebble.disable_app_logs();
                 mPebble.close();
                 // Wait for a close or error event before disabling events,
@@ -213,15 +212,15 @@ var SharedPebble = new (function() {
                     resolve(true);
                 });
                 mConnectionType = ConnectionType.None;
-            });
+            }));
         }
         if(shutdown === true && mEmulator) {
-            disconnect_emu = mEmulator.disconnect();
+            promises.push(mEmulator.disconnect())
             mEmulator = null;
         }
 
-        return Promise.join(close_pebble, disconnect_emu).then(function(pebble_closed, emu_disconnected) {
-            return pebble_closed || emu_disconnected;
+        return Promise.all(promises).then(function(results) {
+            return results.some(function(r) { return !!r });
         });
     };
 
