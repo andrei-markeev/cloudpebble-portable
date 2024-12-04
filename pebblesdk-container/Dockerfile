@@ -20,6 +20,9 @@ RUN rm -rf /pypkjs/.git
 
 RUN pip install -r /pypkjs/requirements.txt
 
+RUN rm -rf /pypkjs/pypkjs/PyV8/darwin64 && \
+    rm -rf /pypkjs/pypkjs/PyV8/linux32
+
 RUN curl -o /tmp/arm-cs-tools.tar https://cloudpebble-vagrant.s3.amazonaws.com/arm-cs-tools-stripped.tar && \
 tar -xf /tmp/arm-cs-tools.tar -C / && rm /tmp/arm-cs-tools.tar
 

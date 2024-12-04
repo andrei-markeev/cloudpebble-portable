@@ -48,7 +48,7 @@ local function startWindows(container_dir)
         local _, err = unix.execve(curl_path, {
             curl_path,
             '-Ls',
-            'https://github.com/andrei-markeev/cloudpebble-portable/releases/download/v0.0.1/pebblesdk-container.tar.gz.tgz',
+            'https://github.com/andrei-markeev/cloudpebble-portable/releases/download/latest/pebblesdk-container.tar.gz',
             '-o',
             path.join(container_dir, 'pebblesdk-container.tar.gz')
         })
