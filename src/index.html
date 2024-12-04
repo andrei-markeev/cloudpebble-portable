@@ -485,10 +485,275 @@
         
         </div>
         
-        <!-- TODO {% include "ide/project/settings.html" %} -->
+        <!-- Settings template -->
+        <div id="settings-pane-template" class="hide settings-pane">
+            <div class="well alert alert-error hide fixed-well"></div>
+            <form class="form-horizontal">
+                <div class="well">
+                    <div class="control-group">
+                        <label class="control-label" for="settings-name">Project name</label>
+                        <div class="controls">
+                            <input type="text" id="settings-name">
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Project type</label>
+                        <div class="static" id="project-type"></div>
+                    </div>
+                    <div class="sdk-version native-only control-group">
+                        <label class="control-label" for="settings-sdk-version">SDK Version</label>
+                        <div class="controls">
+                            <select id="settings-sdk-version">
+                                <option value="2" class="sdk2-only" disabled>SDK 2 (obsolete)</option>
+                                <option value="3" selected>SDK 4</option>
+                            </select>
+                            <span class="help-block">You should reload the page after changing and saving this setting.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="well sdk3-only">
+                    <div class="control-group supports-aplite">
+                        <label class="control-label" for="settings-build-aplite">Build Aplite</label>
+                        <div class="controls">
+                            <input type="checkbox" id="settings-build-aplite">
+                            <span class="help-block">
+                                If enabled, your app will be built to run on Pebble and Pebble Steel watches.
+                            </span>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label" for="settings-build-basalt">Build Basalt</label>
+                        <div class="controls">
+                            <input type="checkbox" id="settings-build-basalt">
+                            <span class="help-block">
+                                If enabled, your app will be built to run on Pebble Time watches.
+                            </span>
+                        </div>
+                    </div>
+                    <div class="control-group" >
+                        <label class="control-label" for="settings-build-chalk">Build Chalk</label>
+                        <div class="controls">
+                            <input type="checkbox" id="settings-build-chalk">
+                            <span class="help-block">
+                                If enabled, your app will be built to run on Pebble Round watches.
+                            </span>
+                        </div>
+                    </div>
+                    <div class="control-group not-pebblejs">
+                        <label class="control-label" for="settings-build-diorite">Build Diorite</label>
+                        <div class="controls">
+                            <input type="checkbox" id="settings-build-diorite">
+                            <span class="help-block">
+                                If enabled, your app will be built to run on Pebble 2 watches.
+                            </span>
+                        </div>
+                    </div>
+                    <div class="control-group not-pebblejs">
+                        <label class="control-label" for="settings-build-emery">Build Emery</label>
+                        <div class="controls">
+                            <input type="checkbox" id="settings-build-emery">
+                            <span class="help-block">
+                                If enabled, your app will be built to run on Pebble Time 2 watches.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="well">
+                        <div class="control-group not-simplyjs not-package">
+                            <label class="control-label" for="settings-app-is-watchface">App kind</label>
+                            <div class="controls">
+                                <select id="settings-app-is-watchface">
+                                    <option value="0">Watchapp</option>
+                                    <option value="1">Watchface</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="control-group not-simplyjs not-package">
+                            <label class="control-label" for="settings-app-visibility">App Visibility</label>
+                            <div class="controls">
+                                <select id="settings-app-visibility">
+                                    <option value="visible">Always Visible</option>
+                                    <option value="hidden">Always Hidden</option>
+                                    <option class="native-only" value="show_on_comms">Only Visible When Companion App Running</option>
+                                </select>
+                                <span class="help-block">
+                                    The visibility of your app in the app launcher menu.
+                                </span>
+                            </div>
+                        </div>
+                        <div class="control-group package-only">
+                            <label class="control-label" for="settings-short-name">Package Name</label>
+                            <div class="controls">
+                                <input type="text" id="settings-short-name" placeholder="Demo Package" value="TODO {{project.app_short_name}}">
+                                <span class="help-block">
+                                    Package name. This will be the name of the package when published in NPM.
+                                </span>
+                            </div>
+                        </div>
+                        <div class="control-group not-package">
+                            <label class="control-label" for="settings-short-name">Short App Name</label>
+                            <div class="controls">
+                                <input type="text" id="settings-short-name" placeholder="Demo App" value="">
+                                <span class="help-block">
+                                    App's short name. This will appear on the watch.
+                                </span>
+                            </div>
+                        </div>
+                        <div class="control-group not-package">
+                            <label class="control-label" for="settings-long-name">Long App Name</label>
+                            <div class="controls">
+                                <input type="text" id="settings-long-name" placeholder="Demo App" value="">
+                                <span class="help-block">
+                                    App's long name. This will appear in the app list on the phone.
+                                </span>
+                            </div>
+                        </div>
+                        <div class="control-group not-simplyjs not-package">
+                            <label class="control-label" for="settings-menu-image">Menu image</label>
+                            <div class="controls">
+                                <select id="settings-menu-image">
+                                    <option value="">
+                                        <span class="native-only">None</span>
+                                        <span class="not-native">Default</span>
+                                    </option>
+                                </select>
+                                <span class="help-block">
+                                    <span class="sdk2-only">Displayed on the Pebble's main menu. Must be a 28x28 file in PNG format.</span>
+                                    <span class="sdk3-only">Displayed on the Pebble's main menu. Must be a 25x25 file in PNG format.</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="settings-company-name">Company Name</label>
+                            <div class="controls">
+                                <input type="text" id="settings-company-name" placeholder="Demo Company" value="">
+                                <span class="help-block">
+                                    Name of the app's developer.
+                                </span>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="settings-version-label">Version label</label>
+                            <div class="controls">
+                                <div class="not-package">
+                                    <input type="text" id="settings-version-label" placeholder="0.1" value="" pattern="^(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5])(\.(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5]))?$">
+                                    <span class="help-block">
+                                        App version. Takes the format major[.minor], where major and minor are between 0 and 255.
+                                    </span>
+                                </div>
+                                <div class="package-only">
+                                    <input type="text" id="settings-version-label" placeholder="0.1.0" value="" pattern="^(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5])\.(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5])\.(0|[1-9]\d?|1\d{2}|2[0-4]\d|25[0-5])$">
+                                    <span class="help-block">
+                                        Package version. Takes the format major.minor.patch, where each is a number between 0 and 255.
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="settings-uuid">App UUID</label>
+                            <div class="controls">
+                                <div class="settings-uuid-control">
+                                    <input type="text" id="settings-uuid" pattern="^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" placeholder="00000000-0000-0000-0000-000000000000" value="TODO {{project.app_uuid}}">
+                                    <button type="button" id="uuid-generate" class="btn btn-small">Generate</button>
+                                </div>
+                                <span class="help-block">
+                                    A unique identifier for the app. Takes the format xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx, where x is any hexadecimal digit and y is one of 8, 9, A, or B
+                                </span>
+                            </div>
+                        </div>
+                        <div class="control-group native-only sdk3-only">
+                            <label class="control-label" for="settings-modern-multi-js">JS Handling</label>
+                            <div class="controls">
+                                <select id="settings-modern-multi-js">
+                                    <!-- TODO: Pebble Portable way -->
+                                    <option value="1">CommonJS-style</option>
+                                    <option value="0"><!-- TODO {% if not project.app_modern_multi_js %}selected{% endif%}-->Concatenation (deprecated)</option>
+                                </select>
+                            </div>
+                                <span class="help-block">
+                                    CommonJS-style enables you to <code>require()</code> other files; concatenation makes them into a single JS file.
+                                </span>
+                        </div>
+                    </div>
+                    <div class="well supports-message-keys">
+                        <div class="control-group not-rocky sdk3-only">
+                            <label class="control-label" for="settings-message-key-kind">Message key assignment kind</label>
+                            <div class="controls">
+                                <select id="settings-message-key-kind">
+                                    <option value="1"><!-- TODO {% if project.uses_array_message_keys %}selected{% endif%}-->Automatic assignment</option>
+                                    <option value="0"><!-- TODO {% if not project.uses_array_message_keys %}selected{% endif%}-->Manual assignment (deprecated)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="control-group supports-message-keys">
+                            <label class="control-label" for="settings-app-keys">PebbleKit JS Message Keys</label>
+                            <div class="controls">
+                                <table id="settings-app-keys">
+                                </table>
+                                <div class="help-block">
+                                    A mapping from strings to integers used by PebbleKit JS.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="well">
+                        <div class="control-group supports-jslint">
+                            <label class="control-label" for="settings-app-jshint">Check Javascript</label>
+                            <div class="controls">
+                                <input type="checkbox" id="settings-app-jshint" />
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="settings-capabilities-location">Uses Location</label>
+                            <div class="controls">
+                                <input type="checkbox" id="settings-capabilities-location" />
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="settings-capabilities-configuration">Configurable</label>
+                            <div class="controls">
+                                <input type="checkbox" id="settings-capabilities-configuration">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="settings-capabilities-health">Uses Health</label>
+                            <div class="controls">
+                                <input type="checkbox" id="settings-capabilities-health">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div id="settings-js-migration-prompt" class="modal hide fade" tabindex="-1" role="dialog">
+            <div class="modal-header">
+                <h3>Enable CommonJS</h3>
+            </div>
+            <form class="form-horizontal">
+                <div class="modal-body">
+                    <div class="control-group">
+                        <label class="control-label" for="settings-js-new-entry-point">Entry point</label>
+                        <div class="controls">
+                            <select id="settings-js-new-entry-point">
+                            </select>
+                        </div>
+                        <div class="help-block">
+                            You must have an app 'entry point' called <code>app.js</code> to use CommonJS-style JavaScript. Choose one to rename.
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button class="btn" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="settings-js-migration-rename-button">Rename</button>
+            </div>
+        </div>
+
         <!-- TODO {% include "ide/project/timeline.html" %} -->
         <!-- TODO {% include "ide/project/dependencies.html" %} -->
-        
+
         <script src="/ext/jquery.min.js"></script>
         <script src="/ext/underscore.min.js"></script>
         <script src="/ext/backbone-min.js"></script>

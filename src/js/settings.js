@@ -2,6 +2,14 @@ CloudPebble.Settings = (function() {
     var settings_template = null;
     var shared_pane = null;
 
+    var PROJECT_TYPES = {
+        'native': 'Pebble C SDK',
+        'simplyjs': 'Simply.js',
+        'pebblejs': 'Pebble.js',
+        'package': 'Pebble Package',
+        'rocky': 'Rocky.js'
+    }
+
     function app_uses_array_appkeys() {
         return _.isArray(CloudPebble.ProjectInfo.app_keys);
     }
@@ -19,6 +27,12 @@ CloudPebble.Settings = (function() {
         if(CloudPebble.ProjectInfo.type != 'native') {
             pane.find('.native-only').hide();
         }
+        if(CloudPebble.ProjectInfo.type == 'native') {
+            pane.find('.not-native').hide();
+        }
+        if (CloudPebble.ProjectInfo.type != 'package') {
+            pane.find('.package-only').hide();
+        }
         if (CloudPebble.ProjectInfo.type == 'package') {
             pane.find('.not-package').hide();
         }
@@ -31,6 +45,9 @@ CloudPebble.Settings = (function() {
         if(!(CloudPebble.ProjectProperties.supports_jslint)) {
             pane.find('.supports-jslint').hide();
         }
+        if(CloudPebble.ProjectInfo.sdk_version != '2') {
+            pane.find('.sdk2-only').hide();
+        }
         if(CloudPebble.ProjectInfo.sdk_version != '3') {
             pane.find('.sdk3-only').hide();
         }
@@ -41,6 +58,29 @@ CloudPebble.Settings = (function() {
         };
 
         pane.find('#settings-name').val(CloudPebble.ProjectInfo.name);
+        pane.find('#project-type').text(PROJECT_TYPES[CloudPebble.ProjectInfo.type]);
+        pane.find('#settings-sdk-version').val(CloudPebble.ProjectInfo.sdk_version)
+        pane.find('#settings-build-aplite').prop('checked', CloudPebble.ProjectInfo.app_platforms.indexOf('aplite') > -1)
+        pane.find('#settings-build-basalt').prop('checked', CloudPebble.ProjectInfo.app_platforms.indexOf('basalt') > -1)
+        pane.find('#settings-build-chalk').prop('checked', CloudPebble.ProjectInfo.app_platforms.indexOf('chalk') > -1)
+        pane.find('#settings-build-diorite').prop('checked', CloudPebble.ProjectInfo.app_platforms.indexOf('diorite') > -1)
+        pane.find('#settings-build-emery').prop('checked', CloudPebble.ProjectInfo.app_platforms.indexOf('emery') > -1)
+        pane.find('#settings-app-is-watchface').val(CloudPebble.ProjectInfo.app_is_watchface ? "1" : "0")
+        pane.find('#settings-app-visibility').val(
+            CloudPebble.ProjectInfo.app_is_hidden ? 'hidden'
+            : CloudPebble.ProjectInfo.app_is_shown_on_communication ? 'show_on_comms'
+            : 'visible'
+        );
+        pane.find('#settings-short-name').val(CloudPebble.ProjectInfo.app_short_name);
+        pane.find('#settings-long-name').val(CloudPebble.ProjectInfo.app_long_name);
+        pane.find('#settings-menu-image').val(CloudPebble.ProjectInfo.menu_icon);
+        pane.find('#settings-company-name').val(CloudPebble.ProjectInfo.app_company_name);
+        pane.find('#settings-version-label').val(CloudPebble.ProjectInfo.app_version_label);
+        pane.find('#settings-uuid').val(CloudPebble.ProjectInfo.app_uuid);        
+        pane.find('#settings-app-jshint').prop('checked', CloudPebble.ProjectInfo.app_jshint);
+        pane.find('#settings-capabilities-location').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('location') > -1)
+        pane.find('#settings-capabilities-configuration').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('configurable') > -1)
+        pane.find('#settings-capabilities-health').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('health') > -1)
         pane.find('form').submit(function(e) {e.preventDefault();});
 
         var save = function() {
