@@ -48,7 +48,7 @@ local function startWindows(container_dir)
         local _, err = unix.execve(curl_path, {
             curl_path,
             '-Ls',
-            'https://github.com/andrei-markeev/cloudpebble-portable/releases/download/latest/pebblesdk-container.tar.gz',
+            'https://github.com/andrei-markeev/cloudpebble-portable/releases/latest/download/pebblesdk-container.tar.gz',
             '-o',
             path.join(container_dir, 'pebblesdk-container.tar.gz')
         })
@@ -95,11 +95,11 @@ local function startWindows(container_dir)
 
     Log(kLogInfo, 'waiting for tar')
     unix.wait();
+    Log(kLogInfo, 'done waiting: tar finished executing')
     if not path.exists(path.join(container_dir, 'rootfs/pebble/init.sh')) then
         Barf(status_filename, 'Error: unpacking failed!');
         return
     end
-    Log(kLogInfo, 'done waiting: tar finished executing')
 
     assert(unix.unlink(path.join(container_dir, 'pebblesdk-container.tar.gz')))
 
