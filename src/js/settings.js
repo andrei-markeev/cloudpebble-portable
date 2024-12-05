@@ -84,7 +84,6 @@ CloudPebble.Settings = (function() {
 
         var save = function() {
 
-            var name = pane.find('#settings-name').val();
             var sdk_version = pane.find('#settings-sdk-version').val();
             var short_name = pane.find('#settings-short-name').val();
             var long_name = pane.find('#settings-long-name').val();
@@ -124,15 +123,8 @@ CloudPebble.Settings = (function() {
             if(pane.find('#settings-capabilities-health').is(':checked')) {
                 app_capabilities.push('health');
             }
-            app_capabilities = app_capabilities.join(',');
 
-            if(name.replace(/\s/g, '') === '') {
-                throw new Error(gettext("You must specify a project name"));
-            }
-
-            var saved_settings = {
-                'name': name
-            };
+            var saved_settings = {};
 
             if(short_name.replace(/\s/g, '') == '') {
                 throw new Error(gettext("You must specify a short name."));
@@ -165,23 +157,22 @@ CloudPebble.Settings = (function() {
                 throw new Error(gettext("You must build your app for at least one platform."));
             }
 
-            var target_platforms = [];
+            var app_platforms = [];
             if(build_aplite) {
-                target_platforms.push('aplite');
+                app_platforms.push('aplite');
             }
             if(build_basalt) {
-                target_platforms.push('basalt');
+                app_platforms.push('basalt');
             }
             if(build_chalk) {
-                target_platforms.push('chalk');
+                app_platforms.push('chalk');
             }
             if(build_diorite) {
-                target_platforms.push('diorite');
+                app_platforms.push('diorite');
             }
             if(build_emery) {
-                target_platforms.push('emery');
+                app_platforms.push('emery');
             }
-            var app_platforms = target_platforms.join(',');
             
             var appkey_data = appkey_table.getValues();
             _.each(appkey_data, function(tuple) {
@@ -217,19 +208,19 @@ CloudPebble.Settings = (function() {
             saved_settings['app_company_name'] = company_name;
             saved_settings['app_version_label'] = version_label;
             saved_settings['app_uuid'] = app_uuid;
-            saved_settings['app_capabilities'] = app_capabilities;
+            saved_settings['app_capabilities'] = JSON.stringify(app_capabilities);
             saved_settings['app_is_watchface'] = app_is_watchface;
             saved_settings['app_is_hidden'] = app_is_hidden;
             saved_settings['app_is_shown_on_communication'] = app_is_shown_on_communication;
             saved_settings['app_keys'] = JSON.stringify(app_keys);
             saved_settings['menu_icon'] = menu_icon;
-            saved_settings['app_platforms'] = app_platforms;
+            saved_settings['app_platforms'] = JSON.stringify(app_platforms);
             saved_settings['app_modern_multi_js'] = app_modern_multi_js;
 
             return Ajax.Post('/api/save-project-settings.lua', saved_settings).then(function() {
                 pane.find('.alert').removeClass("alert-success alert-error").addClass("hide");
 
-                CloudPebble.ProjectInfo.name = name;
+                CloudPebble.ProjectInfo.name = short_name;
                 CloudPebble.ProjectInfo.app_uuid = app_uuid;
                 CloudPebble.ProjectInfo.app_company_name = company_name;
                 CloudPebble.ProjectInfo.app_short_name = short_name;
@@ -245,8 +236,8 @@ CloudPebble.Settings = (function() {
                 CloudPebble.ProjectInfo.app_modern_multi_js = app_modern_multi_js;
 
                 pane.find('#settings-sdk-version option[value=2]').prop('disabled', CloudPebble.ProjectInfo.sdk_version != '2');
-                $('.project-name').text(name);
-                window.document.title = "CloudPebble – " + name;
+                $('.project-name').text(short_name);
+                window.document.title = "CloudPebble – " + short_name;
 
                 if (CloudPebble.Ready) {
                     //CloudPebble.YCM.updateAppkeys(app_key_names);

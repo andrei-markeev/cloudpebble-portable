@@ -493,7 +493,7 @@
                     <div class="control-group">
                         <label class="control-label" for="settings-name">Project name</label>
                         <div class="controls">
-                            <input type="text" id="settings-name">
+                            <span id="settings-name">
                         </div>
                     </div>
                     <div class="control-group">
@@ -582,20 +582,17 @@
                                 </span>
                             </div>
                         </div>
-                        <div class="control-group package-only">
-                            <label class="control-label" for="settings-short-name">Package Name</label>
+                        <div class="control-group">
+                            <label class="control-label" for="settings-short-name">
+                                <span class="package-only">Package Name</span>
+                                <span class="not-package">Short App Name</span>
+                            </label>
                             <div class="controls">
-                                <input type="text" id="settings-short-name" placeholder="Demo Package" value="TODO {{project.app_short_name}}">
-                                <span class="help-block">
+                                <input type="text" id="settings-short-name" placeholder="Hello World" value="">
+                                <span class="help-block package-only">
                                     Package name. This will be the name of the package when published in NPM.
                                 </span>
-                            </div>
-                        </div>
-                        <div class="control-group not-package">
-                            <label class="control-label" for="settings-short-name">Short App Name</label>
-                            <div class="controls">
-                                <input type="text" id="settings-short-name" placeholder="Demo App" value="">
-                                <span class="help-block">
+                                <span class="help-block not-package">
                                     App's short name. This will appear on the watch.
                                 </span>
                             </div>
@@ -613,10 +610,7 @@
                             <label class="control-label" for="settings-menu-image">Menu image</label>
                             <div class="controls">
                                 <select id="settings-menu-image">
-                                    <option value="">
-                                        <span class="native-only">None</span>
-                                        <span class="not-native">Default</span>
-                                    </option>
+                                    <option value="">Default</option>
                                 </select>
                                 <span class="help-block">
                                     <span class="sdk2-only">Displayed on the Pebble's main menu. Must be a 28x28 file in PNG format.</span>

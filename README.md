@@ -23,8 +23,8 @@ CloudPebble Portable is aiming to be small and self-contained. The application i
     - [x] 🟢 on Windows (via WSL and chroot)
     - [ ] 🔴 on MacOS
     - [ ] 🔴 on Linux
-- [ ] 🔴 Dependencies management not implemented yet
-- [ ] 🔴 Project settings not implemented yet
+- [ ] 🔴 Dependencies management UI not implemented yet
+- [x] 🟢 Project settings UI works
 
 ### Usage
 

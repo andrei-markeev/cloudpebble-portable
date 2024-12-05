@@ -83,7 +83,7 @@ if app_info.resources ~= nil and app_info.resources.media ~= nil then
                 variants = { { [0] = false } }
             end
             if r.menuIcon then
-                menu_icon_id = r.name
+                menu_icon_id = root_file_name
             end
             local resource_id = {
                 id = r.name,
@@ -141,7 +141,6 @@ Write(EncodeJson({
     app_is_shown_on_communication = app_info.watchapp.onlyShownOnCommunication,
     app_capabilities = app_info.capabilities,
     -- TODO
-    -- 'app_jshint': project.app_jshint,
     -- 'app_dependencies': project.get_dependencies(include_interdependencies=False),
     -- 'interdependencies': [p.id for p in project.project_dependencies.all()],
     sdk_version = app_info.sdkVersion,
