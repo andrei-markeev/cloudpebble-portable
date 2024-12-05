@@ -29,7 +29,7 @@ local ProjectFiles = {}
     ---shortName: string,
     ---longName: string,
     ---versionLabel: string,
-    ---watchapp: { watchface: boolean, hiddenApp: boolean },
+    ---watchapp: { watchface: boolean, hiddenApp: boolean, onlyShownOnCommunication: boolean },
     ---appKeys: [string, number][], 
     ---capabilities: Capability[],
     ---sdkVersion: string,

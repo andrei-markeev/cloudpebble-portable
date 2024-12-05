@@ -77,7 +77,6 @@ CloudPebble.Settings = (function() {
         pane.find('#settings-company-name').val(CloudPebble.ProjectInfo.app_company_name);
         pane.find('#settings-version-label').val(CloudPebble.ProjectInfo.app_version_label);
         pane.find('#settings-uuid').val(CloudPebble.ProjectInfo.app_uuid);        
-        pane.find('#settings-app-jshint').prop('checked', CloudPebble.ProjectInfo.app_jshint);
         pane.find('#settings-capabilities-location').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('location') > -1)
         pane.find('#settings-capabilities-configuration').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('configurable') > -1)
         pane.find('#settings-capabilities-health').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('health') > -1)
@@ -94,7 +93,6 @@ CloudPebble.Settings = (function() {
             var app_uuid = pane.find('#settings-uuid').val();
             var app_is_watchface = pane.find('#settings-app-is-watchface').val();
             var app_key_array_style = pane.find('#settings-message-key-kind').val() == "1";
-            var app_jshint = pane.find('#settings-app-jshint').prop("checked") ? 1 : 0;
             var app_modern_multi_js = pane.find('#settings-modern-multi-js').val();
             var menu_icon = pane.find('#settings-menu-image').val();
             var build_aplite = pane.find('#settings-build-aplite:visible').prop('checked');
@@ -224,12 +222,11 @@ CloudPebble.Settings = (function() {
             saved_settings['app_is_hidden'] = app_is_hidden;
             saved_settings['app_is_shown_on_communication'] = app_is_shown_on_communication;
             saved_settings['app_keys'] = JSON.stringify(app_keys);
-            saved_settings['app_jshint'] = app_jshint;
             saved_settings['menu_icon'] = menu_icon;
             saved_settings['app_platforms'] = app_platforms;
             saved_settings['app_modern_multi_js'] = app_modern_multi_js;
 
-            return Ajax.Post('/ide/project/' + PROJECT_ID + '/save_settings', saved_settings).then(function() {
+            return Ajax.Post('/api/save-project-settings.lua', saved_settings).then(function() {
                 pane.find('.alert').removeClass("alert-success alert-error").addClass("hide");
 
                 CloudPebble.ProjectInfo.name = name;
@@ -243,7 +240,6 @@ CloudPebble.Settings = (function() {
                 CloudPebble.ProjectInfo.app_is_hidden = app_is_hidden;
                 CloudPebble.ProjectInfo.app_is_shown_on_communication = app_is_shown_on_communication;
                 CloudPebble.ProjectInfo.app_capabilities = app_capabilities;
-                CloudPebble.ProjectInfo.app_jshint = app_jshint;
                 CloudPebble.ProjectInfo.app_platforms = app_platforms;
                 CloudPebble.ProjectInfo.sdk_version = sdk_version;
                 CloudPebble.ProjectInfo.app_modern_multi_js = app_modern_multi_js;
@@ -268,42 +264,6 @@ CloudPebble.Settings = (function() {
             group_selector: '.control-group, tr',
             form: pane.find('form')
         });
-
-        pane.find('#project-delete').click(function() {
-            CloudPebble.Prompts.Confirm(gettext("Delete Project"), gettext("Are you sure you want to delete this project? THIS CANNOT BE UNDONE."), function() {
-                Ajax.Post('/ide/project/' + PROJECT_ID + '/delete', {confirm: true}).then(function() {
-                    window.location.href = "/ide/";
-                }).catch(function(error) {
-                    display_error(interpolate(gettext("Error: %s"), [error]));
-                });
-                ga('send', 'event', 'project', 'delete');
-            });
-        });
-
-        function export_project() {
-            var dialog = $('#export-progress');
-            dialog
-                .modal('show')
-                .find('.progress')
-                .addClass('progress-striped')
-                .removeClass('progress-success progress-danger progress-warning');
-            function show_warning() {
-                dialog.find('.progress').addClass('progress-warning');
-            }
-            return Ajax.Post('/ide/project/' + PROJECT_ID + '/export', {}).then(function(data) {
-                return Ajax.PollTask(data.task_id, {on_bad_request: show_warning});
-            }).then(function(result) {
-                dialog.find('.progress').removeClass('progress-striped').addClass('progress-success');
-                dialog.find('.download-btn').attr('href', result).show();
-            }).catch(function() {
-                dialog.find('.progress').removeClass('progress-striped').addClass('progress-danger');
-            }).finally(function() {
-                ga('send', 'event', 'project', 'export', 'zip');
-            });
-        }
-
-        pane.find('#project-export-zip').click(export_project);
-
 
         var appkey_table_elm = pane.find('#settings-app-keys');
         var appkey_table = new CloudPebble.KVTable(appkey_table_elm, {

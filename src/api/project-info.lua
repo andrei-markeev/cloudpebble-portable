@@ -127,9 +127,9 @@ end
 SetStatus(200)
 SetHeader('Content-Type', 'application/json; charset=utf-8')
 Write(EncodeJson({
-    success=true,
-    type=app_info.projectType,
-    name=app_info.shortName,
+    success = true,
+    type = app_info.projectType,
+    name = app_info.shortName,
     app_uuid = app_info.uuid,
     app_company_name = app_info.companyName,
     app_short_name = app_info.shortName,
@@ -138,8 +138,7 @@ Write(EncodeJson({
     app_is_watchface = app_info.watchapp.watchface,
     app_is_hidden = app_info.watchapp.hiddenApp,
     parsed_app_keys = app_info.appKeys,
-    -- TODO
-    -- 'app_is_shown_on_communication': project.app_is_shown_on_communication,
+    app_is_shown_on_communication = app_info.watchapp.onlyShownOnCommunication,
     app_capabilities = app_info.capabilities,
     -- TODO
     -- 'app_jshint': project.app_jshint,
