@@ -69,9 +69,12 @@ CloudPebble.KVTable = function(table_elm, options) {
      * @returns {jQuery} a tbody with rows for the data and an extra empty row
      */
     function render_body(data) {
-        return $('<tbody>').append(_.map(data, function(tuple) {
-            return render_row(tuple[0], tuple[1]);
-        })).append(render_row());
+        var rows = []
+        for (var [key, value] of Object.entries(data)) {
+            rows.push(render_row(key, value));
+        }
+        rows.push(render_row());
+        return $('<tbody>').append(rows);
     }
 
     function render_head() {

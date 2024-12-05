@@ -994,6 +994,9 @@ CloudPebble.Editor = (function() {
         var file_type_picker = prompt.find('#new-file-type');
         var js_target_picker = prompt.find('#new-js-target');
 
+        if (CloudPebble.ProjectInfo.type == 'package')
+            prompt.find('#new-c-target option[value="app"]').text('Private source');
+
         function get_default_js_name() {
             // If js files don't exist for a certain target, set the name to the default
             // and hide the name input.

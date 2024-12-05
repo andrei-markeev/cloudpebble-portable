@@ -491,12 +491,6 @@
             <form class="form-horizontal">
                 <div class="well">
                     <div class="control-group">
-                        <label class="control-label" for="settings-name">Project name</label>
-                        <div class="controls">
-                            <span id="settings-name">
-                        </div>
-                    </div>
-                    <div class="control-group">
                         <label class="control-label">Project type</label>
                         <div class="static" id="project-type"></div>
                     </div>
@@ -662,7 +656,7 @@
                                 <select id="settings-modern-multi-js">
                                     <!-- TODO: Pebble Portable way -->
                                     <option value="1">CommonJS-style</option>
-                                    <option value="0"><!-- TODO {% if not project.app_modern_multi_js %}selected{% endif%}-->Concatenation (deprecated)</option>
+                                    <option value="0">Concatenation (deprecated)</option>
                                 </select>
                             </div>
                                 <span class="help-block">
@@ -675,8 +669,8 @@
                             <label class="control-label" for="settings-message-key-kind">Message key assignment kind</label>
                             <div class="controls">
                                 <select id="settings-message-key-kind">
-                                    <option value="1"><!-- TODO {% if project.uses_array_message_keys %}selected{% endif%}-->Automatic assignment</option>
-                                    <option value="0"><!-- TODO {% if not project.uses_array_message_keys %}selected{% endif%}-->Manual assignment (deprecated)</option>
+                                    <option value="1">Automatic assignment</option>
+                                    <option value="0">Manual assignment (deprecated)</option>
                                 </select>
                             </div>
                         </div>
@@ -787,13 +781,7 @@
                             <label class="control-label" for="new-c-target">Target</label>
                             <div class="controls">
                                 <select id="new-c-target">
-                                    <option value="app" selected>
-                                        <!-- TODO {% if project.project_type == 'package' %}
-                                            Private source' %}
-                                        {% else %}-->
-                                            App / Watchface
-                                        <!-- {% endif %} -->
-                                    </option>
+                                    <option value="app" selected>App / Watchface</option>
                                     <option value="worker" class="native-only">Background worker</option>
                                     <option value="public" class="package-only">Public header file</option>
                                 </select>

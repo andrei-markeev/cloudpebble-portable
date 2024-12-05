@@ -11,7 +11,7 @@ CloudPebble.Settings = (function() {
     }
 
     function app_uses_array_appkeys() {
-        return _.isArray(CloudPebble.ProjectInfo.app_keys);
+        return Array.isArray(CloudPebble.ProjectInfo.parsed_app_keys);
     }
 
     var show_settings_pane = function() {
@@ -52,6 +52,10 @@ CloudPebble.Settings = (function() {
             pane.find('.sdk3-only').hide();
         }
 
+        if (CloudPebble.ProjectInfo.type == 'native') {
+            pane.find('#settings-menu-image option[value=""]').text('None');
+        }
+
         var display_error = function(message) {
             pane.find('.alert').addClass('alert-error').removeClass('hide').text(message);
             pane.find('input, button, select').removeAttr('disabled');
@@ -76,10 +80,12 @@ CloudPebble.Settings = (function() {
         pane.find('#settings-menu-image').val(CloudPebble.ProjectInfo.menu_icon);
         pane.find('#settings-company-name').val(CloudPebble.ProjectInfo.app_company_name);
         pane.find('#settings-version-label').val(CloudPebble.ProjectInfo.app_version_label);
-        pane.find('#settings-uuid').val(CloudPebble.ProjectInfo.app_uuid);        
-        pane.find('#settings-capabilities-location').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('location') > -1)
-        pane.find('#settings-capabilities-configuration').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('configurable') > -1)
-        pane.find('#settings-capabilities-health').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('health') > -1)
+        pane.find('#settings-uuid').val(CloudPebble.ProjectInfo.app_uuid);
+        pane.find('#settings-capabilities-location').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('location') > -1);
+        pane.find('#settings-capabilities-configuration').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('configurable') > -1);
+        pane.find('#settings-capabilities-health').prop('checked', CloudPebble.ProjectInfo.app_capabilities.indexOf('health') > -1);
+        pane.find('#settings-message-key-kind').val(app_uses_array_appkeys() ? '1' : '0');
+        pane.find('#settings-modern-multi-js').val(CloudPebble.ProjectInfo.app_modern_multi_js ? '1' : '0')
         pane.find('form').submit(function(e) {e.preventDefault();});
 
         var save = function() {
@@ -227,7 +233,7 @@ CloudPebble.Settings = (function() {
                 CloudPebble.ProjectInfo.app_long_name = long_name;
                 CloudPebble.ProjectInfo.app_version_label = version_label;
                 CloudPebble.ProjectInfo.app_is_watchface = app_is_watchface;
-                CloudPebble.ProjectInfo.app_keys = app_keys;
+                CloudPebble.ProjectInfo.parsed_app_keys = app_keys;
                 CloudPebble.ProjectInfo.app_is_hidden = app_is_hidden;
                 CloudPebble.ProjectInfo.app_is_shown_on_communication = app_is_shown_on_communication;
                 CloudPebble.ProjectInfo.app_capabilities = app_capabilities;

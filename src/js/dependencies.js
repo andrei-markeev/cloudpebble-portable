@@ -570,14 +570,14 @@ CloudPebble.Dependencies = (function() {
             container: 'body'
         });
         // If YCM is already initialised or in the process of initialising, this will just resolve with the initialisation promise's data.
-        CloudPebble.YCM.initialise().then(function(data) {
+        /*CloudPebble.YCM.initialise().then(function(data) {
             if (data.npm_error) {
                 alerts.show_error(data.npm_error);
             }
             else {
                 update_header_list(data.libraries);
             }
-        });
+        });*/
 
     }
 
@@ -615,14 +615,14 @@ CloudPebble.Dependencies = (function() {
             dependencies_template = $('#dependencies-pane-template').remove().removeClass('hide');
             alerts.init(dependencies_template);
 
-            alerts.show_progress();
+            /*alerts.show_progress();
             CloudPebble.YCM.initialise().then(function(data) {
                 if (data.libraries) {
                     update_header_file_list(data.libraries)
                 }
             }).finally(function() {
                 alerts.hide_progress();
-            });
+            });*/
         },
         GetHeaderFileNames: function() {
             return headers;
