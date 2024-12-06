@@ -39,7 +39,7 @@ if status ~= 'ready' then
 end
 
 if host_os == 'WINDOWS' then
-    if QemuPID ~= nil and PhoneSimPID ~= nil then
+    if path.exists('.pebble/qemu_control') then
         SetStatus(200)
         SetHeader('Content-Type', 'application/json; charset=utf-8')
         Write(EncodeJson({
@@ -49,6 +49,8 @@ if host_os == 'WINDOWS' then
         }))
         return
     end
+
+    assert(Barf('.pebble/qemu_control', '1'))
 
     local wsl_path = '/C/WINDOWS/system32/wsl.exe';
     if not path.exists(wsl_path) then
@@ -61,19 +63,17 @@ if host_os == 'WINDOWS' then
         return
     end
 
-    local child_pid = unix.fork()
-    if child_pid == 0 then
+    if unix.fork() == 0 then
 
         Log(kLogInfo, "in the child")
-        local qemu_pid = unix.fork()
-        if qemu_pid == 0 then
 
-            -- redirect stdin to dev/null
+        if assert(unix.fork()) == 0 then
+
             local fd = unix.open('/dev/null', unix.O_RDONLY)
             unix.dup(fd, 0);
             unix.close(fd);
 
-            Log(kLogInfo, "spawning qemu: " .. wsl_path .. ' --user root -- sh -c chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/emulate_' .. platform .. '.sh')
+            Log(kLogInfo, "spawning qemu: " .. wsl_path .. ' --user root -- sh -c "chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/emulate_' .. platform .. '.sh"')
             local _, err = unix.execve(wsl_path, {
                 wsl_path,
                 '--user', 'root',
@@ -88,18 +88,16 @@ if host_os == 'WINDOWS' then
 
             unix.exit(127)
         end
-        QemuPID = qemu_pid
 
         Sleep(3)
 
-        local phonesim_pid = unix.fork()
-        if phonesim_pid == 0 then
+        if assert(unix.fork()) == 0 then
 
             local fd = unix.open('/dev/null', unix.O_RDONLY)
             unix.dup(fd, 0);
             unix.close(fd);
 
-            Log(kLogInfo, "spawning phonesim: " .. wsl_path .. ' --user root -- sh -c chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/run_pypkjs.sh')
+            Log(kLogInfo, "spawning phonesim: " .. wsl_path .. ' --user root -- sh -c "chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/run_pypkjs.sh"')
 
             local phonesim_log = '.pebble/phonesim.log'
             local fd = unix.open(phonesim_log, unix.O_WRONLY | unix.O_CREAT, 0644)
@@ -121,15 +119,15 @@ if host_os == 'WINDOWS' then
 
             unix.exit(127)
         end
-        PhoneSimPID = phonesim_pid
 
-        Sleep(3)
+        Log(kLogInfo, "start waiting for qemu and phonesim")
 
-        Log(kLogInfo, "end executing child")
+        unix.wait()
+
+        Log(kLogInfo, "end executing launch-emulator child")
         return
     end
 
-    -- TODO kill zombies? (unix.sigaction)
 end
 
 SetStatus(200)

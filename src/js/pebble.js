@@ -148,38 +148,66 @@ var SharedPebble = new (function() {
                         reject(new Error(gettext("Connection interrupted.")));
                     }
                 });
-				console.log(getWebsocketURL());
-                mPebble = new Pebble(getWebsocketURL(), getToken());
-                mPebble.on('all', handlePebbleEvent);
-                mPebble.on('proxy:authenticating', function() {
-                    CloudPebble.Prompts.Progress.Update(gettext("Authenticating..."));
-                });
-                mPebble.on('proxy:waiting', function() {
-                    CloudPebble.Prompts.Progress.Update(gettext("Waiting for phone. Make sure the developer connection is enabled."));
-                });
-                var connectionError = function() {
-                    reject(new Error(gettext("Connection interrupted")));
-                };
-                mPebble.on('close error', connectionError);
-                mPebble.on('open', function() {
-                    if(self.isVirtual()) {
-                        var date = new Date();
-                        if((mConnectionType & ConnectionType.QemuAplite) != ConnectionType.QemuAplite) {
-                            // Set pebble timezone
-                            mPebble.set_time_utc(date.getTime());
-                            console.log("setting pebble clock to utc.");
-                        } else {
-                            // Set the clock to localtime.
-                            mPebble.set_time(date.getTime() - date.getTimezoneOffset() * 60000);
-                            console.log("setting pebble clock to localtime.");
+
+                var phoneUrl = getWebsocketURL();
+                var attemptsLeft = 10;
+                function checkConnectivity() {
+                    return new Promise(function(resolve, reject) {
+
+                        function probeConnection() {
+                            attemptsLeft--;
+                            var socket = new WebSocket(phoneUrl);
+                            socket.addEventListener("open", function() {
+                                socket.close()
+                                resolve()
+                            });
+                            socket.addEventListener("error", function(e) {
+                                if (attemptsLeft <= 0)
+                                    reject("Couldn't connect to " + phoneUrl + "!");
+                                else {
+                                    setTimeout(probeConnection, 2000);
+                                }
+                            });
                         }
-                    }
-                    mPebble.enable_app_logs();
-                    did_connect = true;
-                    mPebble.off(null, connectionError);
-                    mPebble.off('proxy:authenticating proxy:waiting');
-                    CloudPebble.Prompts.Progress.Hide();
-                    resolve(mPebble);
+
+                        probeConnection();
+
+                    })
+                }
+
+                checkConnectivity().then(function() {
+                    mPebble = new Pebble(phoneUrl, getToken());
+                    mPebble.on('all', handlePebbleEvent);
+                    mPebble.on('proxy:authenticating', function() {
+                        CloudPebble.Prompts.Progress.Update(gettext("Authenticating..."));
+                    });
+                    mPebble.on('proxy:waiting', function() {
+                        CloudPebble.Prompts.Progress.Update(gettext("Waiting for phone. Make sure the developer connection is enabled."));
+                    });
+                    var connectionError = function() {
+                        reject(new Error(gettext("Connection interrupted")));
+                    };
+                    mPebble.on('close error', connectionError);
+                    mPebble.on('open', function() {
+                        if(self.isVirtual()) {
+                            var date = new Date();
+                            if((mConnectionType & ConnectionType.QemuAplite) != ConnectionType.QemuAplite) {
+                                // Set pebble timezone
+                                mPebble.set_time_utc(date.getTime());
+                                console.log("setting pebble clock to utc.");
+                            } else {
+                                // Set the clock to localtime.
+                                mPebble.set_time(date.getTime() - date.getTimezoneOffset() * 60000);
+                                console.log("setting pebble clock to localtime.");
+                            }
+                        }
+                        mPebble.enable_app_logs();
+                        did_connect = true;
+                        mPebble.off(null, connectionError);
+                        mPebble.off('proxy:authenticating proxy:waiting');
+                        CloudPebble.Prompts.Progress.Hide();
+                        resolve(mPebble);
+                    });
                 });
             }).catch(function(error) {
                 mPebble.off();

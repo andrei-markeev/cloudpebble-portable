@@ -39,7 +39,7 @@
                     mPyPKJSPort = data.pypkjs_port;
 
                     if (data.spawned)
-                        return new Promise(function(resolve) { setTimeout(resolve, 10000) });
+                        return new Promise(function(resolve) { setTimeout(resolve, 2500) });
                 });
         }
 
@@ -74,8 +74,7 @@
                         self.trigger('connected');
                         mKickInterval = setInterval(kickRFB, 2000); // By doing this we make sure it keeps updating.
                     } else if (state == 'failed' || state == 'fatal') {
-                        reject();
-                        mPendingPromise = null;
+                        reject(msg);
                     }
                 }
                 if (state == 'normal') {
@@ -251,16 +250,27 @@
             if(mPendingPromise) {
                 return mPendingPromise;
             }
+            var resolvePending, rejectPending;
+            mPendingPromise = new Promise((resolve, reject) => { resolvePending = resolve; rejectPending = reject });
             showLaunchSplash();
-            var promise = spawn().then(function() {
-                    return startVNC()
-                })
-                .catch(function(error) {
-                    //CloudPebble.Analytics.addEvent('qemu_launched', {success: false, reason: error.message});
-                    throw error;
-                });
-            mPendingPromise = promise;
-            return promise;
+            var attemptsLeft = 10;
+            function tryConnect() {
+                spawn().then(function() {
+                        return startVNC()
+                    })
+                    .then(function() {
+                        resolvePending();
+                    })
+                    .catch(function(error) {
+                        if (error.indexOf('1006') > -1 && attemptsLeft > 0) {
+                            attemptsLeft--;
+                            setTimeout(tryConnect, 2000)
+                        } else
+                            rejectPending(error)
+                    });
+            }
+            tryConnect();
+            return mPendingPromise;
         };
 
         this.disconnect = function() {

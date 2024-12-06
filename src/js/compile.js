@@ -243,7 +243,7 @@ CloudPebble.Compile = (function() {
         }
     };
 
-    var run_build = function() {
+    var run_build = function(showCompilationProgress) {
         CloudPebble.Prompts.Progress.Show(gettext("Preparing build environment..."));
         ga('send', 'event', 'build', 'run', { eventValue: ++m_build_count });
         var init_build = function() {
@@ -255,7 +255,10 @@ CloudPebble.Compile = (function() {
                     });
                 }
 
-                CloudPebble.Prompts.Progress.Hide();
+                if (showCompilationProgress)
+                    CloudPebble.Prompts.Progress.Show(gettext("Compiling..."));
+                else
+                    CloudPebble.Prompts.Progress.Hide();
                 var temp_build = {started: Date.now(), finished: null, state: 1, uuid: null, id: null, size: {total: null, binary: null, resources: null}};
                 update_last_build(pane, temp_build);
                 pane.find('#run-build-table').prepend(build_history_row(temp_build));
@@ -824,8 +827,8 @@ CloudPebble.Compile = (function() {
         Init: function() {
             init();
         },
-        RunBuild: function() {
-            return run_build();
+        RunBuild: function(showCompilationProgress) {
+            return run_build(showCompilationProgress);
         },
         /**
          * Get the platform to install and run the the app on, given details of the project and last build.
