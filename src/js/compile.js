@@ -243,11 +243,11 @@ CloudPebble.Compile = (function() {
         }
     };
 
-    var run_build = function(showCompilationProgress) {
+    var run_build = function(fromEditor) {
         CloudPebble.Prompts.Progress.Show(gettext("Preparing build environment..."));
         ga('send', 'event', 'build', 'run', { eventValue: ++m_build_count });
         var init_build = function() {
-            return Ajax.Post('/api/compile-project.lua').then(function (data) {
+            return Ajax.Post('/api/compile-project.lua' + (fromEditor ? '?can_skip=1' : '')).then(function (data) {
                 if (data.progress) {
                     CloudPebble.Prompts.Progress.Update(data.progress);
                     return new Promise((r) => setTimeout(r, 3000)).then(function () {
@@ -255,7 +255,7 @@ CloudPebble.Compile = (function() {
                     });
                 }
 
-                if (showCompilationProgress)
+                if (fromEditor)
                     CloudPebble.Prompts.Progress.Show(gettext("Compiling..."));
                 else
                     CloudPebble.Prompts.Progress.Hide();
@@ -827,8 +827,8 @@ CloudPebble.Compile = (function() {
         Init: function() {
             init();
         },
-        RunBuild: function(showCompilationProgress) {
-            return run_build(showCompilationProgress);
+        RunBuild: function(fromEditor) {
+            return run_build(fromEditor);
         },
         /**
          * Get the platform to install and run the the app on, given details of the project and last build.

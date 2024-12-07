@@ -52,7 +52,7 @@ function ConcatJavascript.concat(app_info, app_dir, rootfs_dir, assert_and_fail)
         assert_and_fail(unix.unlink(file_path_in_container))
     end
     unix.write(fd, '__loader.require("index");')
-    
+
     assert_and_fail(unix.close(fd))
 
     assert_and_fail(unix.rename(path.join(app_dir, 'pebble-js-app.js'), path.join(js_dir, 'pebble-js-app.js')))

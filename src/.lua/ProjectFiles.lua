@@ -139,7 +139,7 @@ function ProjectFiles.getFileTarget(app_info, dir, base_dir)
     elseif app_info.projectType ~= 'package' and dir == path.join(base_dir, 'resources') then
         target = 'resource'
     elseif app_info.projectType == 'native' then
-        if dir == 'src' then
+        if dir == path.join(base_dir, 'src') then
             target = 'app'
         elseif dir == path.join(base_dir, 'src/pkjs') or dir == path.join(base_dir, 'src/js') then
             target = 'pkjs'
@@ -218,9 +218,9 @@ function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
                     findRecursive(child_dir, child_target)
                 elseif kind == unix.DT_REG then
                     local file_target = target
-                    if not dir and name == 'wscript' then
+                    if dir == base_dir and name == 'wscript' then
                         file_target = 'wscript'
-                    elseif not dir and (name == 'appinfo.json' or name == 'package.json') then
+                    elseif dir == base_dir and (name == 'appinfo.json' or name == 'package.json') then
                         file_target = 'manifest'
                     end
                     if file_target == find_target or find_target == 'all' then
@@ -236,6 +236,25 @@ function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
     return result;
 end
 
+---@param file_path string
+---@param target_dir string
+---@param file_stat unix.Stat
+---@overload fun(file_path, target_dir)
+function ProjectFiles.copyOneFile(file_path, target_dir, file_stat)
+    local target_file_path = path.join(target_dir, file_path)
+    local dir = path.dirname(file_path)
+    if not file_stat then
+        file_stat = assert(unix.stat(file_path))
+    end
+    Log(kLogInfo, 'Copying from ' .. file_path .. ' to ' .. target_file_path)
+    assert(unix.makedirs(path.join(target_dir, dir)))
+    local contents = assert(Slurp(file_path))
+    assert(Barf(target_file_path, contents))
+    local access_sec, access_ns = file_stat:atim();
+    local modified_sec, modified_ns = file_stat:mtim();
+    unix.utimensat(target_file_path, access_sec, access_ns, modified_sec, modified_ns)
+end
+
 ---@param app_info AppInfo
 ---@param target_dir string
 function ProjectFiles.copyTo(app_info, target_dir)
@@ -246,10 +265,18 @@ function ProjectFiles.copyTo(app_info, target_dir)
         if file_info.target ~= 'unknown' then
             local file_path = path.join(file_info.dir, file_info.name);
             local target_file_path = path.join(target_dir, file_path)
-            Log(kLogInfo, 'Copying from ' .. file_path .. ' to ' .. target_file_path)
-            assert(unix.makedirs(path.join(target_dir, file_info.dir)))
-            local contents = assert(Slurp(file_path))
-            assert(Barf(target_file_path, contents))
+            local skip = false
+            local target_stat = unix.stat(target_file_path);
+            local file_stat = assert(unix.stat(file_path))
+            if target_stat then
+                if file_stat:mtim() == target_stat:mtim() and file_stat:size() == target_stat:size() then
+                    Log(kLogInfo, 'Skipping: ' .. file_path .. ' (unchanged)')
+                    skip = true
+                end
+            end
+            if not skip then
+                ProjectFiles.copyOneFile(file_path, target_dir, file_stat)
+            end
         end
     end
 
