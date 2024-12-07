@@ -123,7 +123,7 @@ var SharedPebble = new (function() {
         }
     }
 
-    this.getPebble = function(kind) {
+    this.getPebble = function(kind, phoneIpAddress) {
         if(mPebble && mPebble.is_connected()) {
             if(kind === undefined || mConnectionType == kind || (kind == ConnectionType.Qemu && self.isVirtual())) {
                 return Promise.resolve(mPebble);
@@ -149,7 +149,7 @@ var SharedPebble = new (function() {
                     }
                 });
 
-                var phoneUrl = getWebsocketURL();
+                var phoneUrl = (kind & ConnectionType.Qemu) ? getEmulatorWebsocketURL() : 'ws://' + phoneIpAddress + ':9000/';
                 var attemptsLeft = 10;
                 function checkConnectivity() {
                     return new Promise(function(resolve, reject) {
@@ -208,9 +208,10 @@ var SharedPebble = new (function() {
                         CloudPebble.Prompts.Progress.Hide();
                         resolve(mPebble);
                     });
-                });
+                }).catch(function(e) {reject(e)});
             }).catch(function(error) {
-                mPebble.off();
+                if (mPebble)
+                    mPebble.off();
                 mPebble = null;
                 mEmulator = null;
                 CloudPebble.Prompts.Progress.Fail();
@@ -260,8 +261,8 @@ var SharedPebble = new (function() {
         return ConnectionPlatformNames[mConnectionType];
     };
 
-    function getWebsocketURL() {
-        return (mConnectionType & ConnectionType.Qemu)? mEmulator.getWebsocketURL() : LIBPEBBLE_PROXY;
+    function getEmulatorWebsocketURL() {
+        return mEmulator.getWebsocketURL();
     }
 
     function getToken() {

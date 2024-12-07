@@ -144,10 +144,11 @@
                         <div class="tab-content" id="run-target-content">
                             <div id="run-device" class="tab-pane">
                                 <div class="control-group text-center">
-                                    <p>
-                                        Make sure that the Developer Connection is enabled on your phone, and you are
-                running at least phone app version 2.5 (iOS) or 2.1 (Android).
-                                    </p>
+                                    <label class="control-label" for="phone-ip-address">IP address</label>
+                                    <div class="controls">
+                                        <input type="text" id="phone-ip-address">
+                                        <span class="help-block">Make sure that the Developer Connection is enabled on your phone. Take the IP address from the "Pebble Tool Connection" section and enter it here.</span>
+                                    </div>
                                 </div>
                                 <hr>
         
@@ -642,7 +643,7 @@
                             <label class="control-label" for="settings-uuid">App UUID</label>
                             <div class="controls">
                                 <div class="settings-uuid-control">
-                                    <input type="text" id="settings-uuid" pattern="^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" placeholder="00000000-0000-0000-0000-000000000000" value="TODO {{project.app_uuid}}">
+                                    <input type="text" id="settings-uuid" pattern="^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$" placeholder="00000000-0000-0000-0000-000000000000" value="">
                                     <button type="button" id="uuid-generate" class="btn btn-small">Generate</button>
                                 </div>
                                 <span class="help-block">
@@ -1079,7 +1080,7 @@
                 keybinds: "",
                 use_spaces: true,
                 tab_width: 4,
-                token: ""
+                token: null
             };
             var DOC_JSON = "/data/documentation.json";
             var REGEXES = {

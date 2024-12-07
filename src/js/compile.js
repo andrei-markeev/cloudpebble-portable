@@ -13,6 +13,7 @@ CloudPebble.Compile = (function() {
     var mLastScrollTop = 'bottom';
     var mLastBuild = null;
     var mLastBuildLogModified = null;
+    var mPhoneIpAddress = null;
 
     var build_history_row = function(build) {
         var tr = $('<tr>');
@@ -135,6 +136,13 @@ CloudPebble.Compile = (function() {
     var pane = null;
     var init = function() {
         pane = $('#compilation-pane-template').clone();
+        mPhoneIpAddress = localStorage.getItem('phoneIpAddress');
+        if (mPhoneIpAddress)
+            pane.find('#phone-ip-address').val(mPhoneIpAddress);
+        pane.find('#phone-ip-address').change(function(e) {
+            mPhoneIpAddress = e.target.value;
+            localStorage.setItem('phoneIpAddress', mPhoneIpAddress);
+        });
         pane.find('#install-on-phone-btn').click(function(e) {
             e.preventDefault();
             install_on_watch(ConnectionType.Phone);
@@ -552,7 +560,7 @@ CloudPebble.Compile = (function() {
 
     var install_on_watch = function(kind) {
         var modal = $('#phone-install-progress');
-        return SharedPebble.getPebble(kind).then(function(pebble) {
+        return SharedPebble.getPebble(kind, mPhoneIpAddress).then(function(pebble) {
             return new Promise(function(resolve, reject) {
                 pebble.on('status', function(code) {
                     pebble.off('install:progress');
@@ -678,7 +686,7 @@ CloudPebble.Compile = (function() {
     };
 
     var show_app_logs = function(kind) {
-        SharedPebble.getPebble(kind).then(function(pebble) {
+        SharedPebble.getPebble(kind, mPhoneIpAddress).then(function(pebble) {
             pebble.on('close', function() {
                 if(mLogHolder)
                     mLogHolder.append($('<span>').addClass('log-error').text(gettext("Disconnected from phone.") + "\n"));
@@ -717,7 +725,7 @@ CloudPebble.Compile = (function() {
         var modal = $('#phone-screenshot-display').clone();
         var finished = false;
 
-        SharedPebble.getPebble(kind).then(function(pebble) {
+        SharedPebble.getPebble(kind, mPhoneIpAddress).then(function(pebble) {
             var report_error = function(message) {
                 modal.find('.modal-body > p').text(message);
                 modal.find('.dismiss-btn').removeClass('hide');

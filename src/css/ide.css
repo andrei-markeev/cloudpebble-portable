@@ -537,21 +537,8 @@ table.kv-table .kv-remove {
     width: 590px;
 }
 
-.compilation-pane input:not([type=checkbox]) {
-    width: 460px;
-}
-
-.compilation-pane select {
-    width: 475px;
-}
-
-.compilation-pane form.form-horizontal label {
-    width: 90px;
-    text-align: left;
-}
-
-.compilation-pane form.form-horizontal .help-block {
-    margin-left: 110px;
+.compilation-pane input[type=text] {
+    width: 425px;
 }
 
 .compilation-pane .compilation-buttons.two-buttons .btn {

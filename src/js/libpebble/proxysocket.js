@@ -51,9 +51,15 @@
         }
 
         function handle_socket_open(e) {
-            console.log("socket open; authenticating with token: " + mToken);
-            self.trigger('proxy:authenticating');
-            self.send(new Uint8Array([0x09, mToken.length].concat(_.invoke(mToken, 'charCodeAt', 0))));
+            if (mToken) {
+                console.log("socket open; authenticating with token: " + mToken);
+                self.trigger('proxy:authenticating');
+                self.send(new Uint8Array([0x09, mToken.length].concat(_.invoke(mToken, 'charCodeAt', 0))));
+            } else {
+                console.log("Connected successfully.");
+                mIsConnected = true;
+                self.trigger('open');
+            }
         }
 
         function handle_socket_message(e) {
