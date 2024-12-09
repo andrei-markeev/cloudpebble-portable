@@ -5,6 +5,8 @@
 CloudPebble.Timeline = new (function() {
     var mEditor = null;
     var mCurrentAction = null;
+    var mSyncUrl = '/api/get-timeline-updates.lua';
+
     function setStatus(okay, text) {
         $('#timeline-status').text(text);
         if(okay) {
@@ -71,9 +73,112 @@ CloudPebble.Timeline = new (function() {
             });
     }
 
+    var authWindow = null;
+    function poll() {
+        var spamInterval = setInterval(function () {
+            if (authWindow.location && authWindow.location.host) {
+                $(authWindow).off();
+                clearInterval(spamInterval);
+                console.log("there!");
+                authWindow.postMessage('hi', '*');
+                $(window).one('message', function (event) {
+                    var queryString = event.originalEvent.data;
+                    console.log('got:', queryString);
+                    var params = new URLSearchParams(queryString);
+                    if (params.has('success')) {
+                        mAuthenticated = 1;
+                        syncFromWeb();
+                    } else if (params.has('error'))
+                        setStatus(false, params.get('error'));
+                    authWindow.close();
+                });
+                
+            } else if (authWindow.closed) {
+                console.log('it closed.');
+                clearInterval(spamInterval);
+                $(window).off('message');
+            }
+        }, 1000);
+    }
+
+    async function syncFromWeb() {
+
+        let updatesSynced = 0;
+        let successful = 0;
+        let pebble = null;
+
+        try {
+            
+            pebble = await SharedPebble.getPebble(ConnectionType.QemuBasalt);
+            
+            while (true) {
+                const data = await Ajax.Get(mSyncUrl);
+
+                if (data.mustResync) {
+                    mSyncUrl = data.syncURL;
+                    continue;
+                }
+
+                // TODO: add timeouts, sometimes the thing gets stuck
+                for (var update of data.updates) {
+                    if (update.type === 'timeline.pin.create') {
+                        await new Promise((resolve) => {
+                            pebble.once('timeline:result', function(r) {
+                                if (r) successful++;
+                                resolve();
+                                console.log('update synced:', r, update)
+                            });
+                            update.data.id = update.data.guid;
+                            pebble.emu_send_pin(JSON.stringify(update.data));
+                            updatesSynced++;
+                        });
+                    } else if (update.type === 'timeline.pin.delete') {
+                        await new Promise((resolve) => {
+                            pebble.once('timeline:result', function(r) {
+                                if (r) successful++;
+                                resolve();
+                                console.log('update synced:', r, update)
+                            });
+                            pebble.emu_delete_pin(update.data.guid);
+                            updatesSynced++;
+                        });
+                    } else {
+                        console.error('Unsupported update type!', update)
+                        updatesSynced++;
+                    }
+                }
+                
+                if (data.nextPageURL) {
+                    mSyncUrl = data.nextPageURL;
+                    continue;
+                }
+
+                mSyncUrl = data.syncURL;
+                break;
+            }
+            
+            setStatus(successful === updatesSynced, successful + '/' + updatesSynced + ' updates synced successfully.');
+
+        } catch(err) {
+
+            if (err.message === 'Rebble authentication required') {
+                CloudPebble.Prompts.Confirm(gettext("Authentication required"), gettext("Timeline is synced from Rebble, you need to log in to Rebble in order to proceed."), function() {
+                    authWindow = window.open(
+                        "https://auth.rebble.io/oauth/authorise?response_type=code&client_id=b576399e9d1fdaa8e666a4dffbbdd1&scope=profile&redirect_uri=http://localhost:60000/",
+                        "rebble_auth",
+                        "width=375,height=567"
+                    );
+                    poll();
+                });
+            } else
+                setStatus(false, err);
+
+        }
+
+    }
+
     this.show = function() {
         CloudPebble.Sidebar.SuspendActive();
-        //CloudPebble.Analytics.addEvent("cloudpebble_timeline_displayed", {}, null, ["cloudpebble"]);
         if(CloudPebble.Sidebar.Restore("timeline")) {
             return;
         }
@@ -85,7 +190,6 @@ CloudPebble.Timeline = new (function() {
             electricChars: true,
             matchBrackets: true,
             autoCloseBrackets: true,
-            //highlightSelectionMatches: true,
             smartIndent: true,
             indentWithTabs: !USER_SETTINGS.use_spaces,
             mode: "application/json",
@@ -97,6 +201,7 @@ CloudPebble.Timeline = new (function() {
 
         $('#timeline-insert-btn').click(insertPin);
         $('#timeline-delete-btn').click(deletePin);
+        $('#timeline-websync-btn').click(syncFromWeb);
     }
 })();
 

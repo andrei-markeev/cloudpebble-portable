@@ -24,8 +24,13 @@ CloudPebble Portable is aiming to be small and self-contained. The application i
     - [ ] 🔴 on MacOS
     - [ ] 🔴 on Linux
 - [x] 🟢 Connection to phone works
+- [x] 🟢 Timeline UI (manual pin management and websync) works
 - [ ] 🔴 Dependencies management UI not implemented yet
 - [x] 🟢 Project settings UI works
+
+#### Known issues
+
+- Emulator will not shutdown automatically if you close the app. Please either shut it down manually before exiting via UI, or kill the wsl processes after exiting.
 
 ### Usage
 

@@ -100,7 +100,7 @@ if host_os == 'WINDOWS' then
             Log(kLogInfo, "spawning phonesim: " .. wsl_path .. ' --user root -- sh -c "chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/run_pypkjs.sh"')
 
             local phonesim_log = '.pebble/phonesim.log'
-            local fd = unix.open(phonesim_log, unix.O_WRONLY | unix.O_CREAT, 0644)
+            local fd = unix.open(phonesim_log, unix.O_WRONLY | unix.O_CREAT | unix.O_TRUNC, 0644)
             unix.dup(fd, 1)
             unix.dup(fd, 2)
             unix.close(fd)

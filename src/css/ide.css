@@ -796,13 +796,13 @@ table.build-results tr.pending .build-state {
 /* Timeline */
 
 .timeline-input .CodeMirror {
-    height: calc(100% - 40px) !important;
+    height: calc(100% - 84px) !important;
 }
 
 .timeline-buttons {
     position: absolute;
-    bottom: 10px;
-    right: 10px;
+    bottom: 20px;
+    right: 20px;
 }
 
 #timeline-status {
@@ -818,6 +818,10 @@ table.build-results tr.pending .build-state {
 
 #timeline-status.good {
     color: green;
+}
+
+.timeline-buttons #timeline-websync-btn {
+    width: 170px;
 }
 
 /* Old stuff. */
