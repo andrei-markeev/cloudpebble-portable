@@ -28,10 +28,6 @@ CloudPebble Portable is aiming to be small and self-contained. The application i
 - [ ] 🔴 Dependencies management UI not implemented yet
 - [x] 🟢 Project settings UI works
 
-#### Known issues
-
-- Emulator will not shutdown automatically if you close the app. Please either shut it down manually before exiting via UI, or kill the wsl processes after exiting.
-
 ### Usage
 
 Download the `cloudpebble-portable.com` executable from **Releases**. Drop it into your watch app folder (i.e. where your `appinfo.json` or `package.json` resides) and run. The browser will pop up, showing CloudPebble interface.

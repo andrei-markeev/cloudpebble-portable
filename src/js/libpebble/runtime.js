@@ -1,15 +1,73 @@
-// @ts-check
-var PebbleRuntimeState;
-function PebbleRuntimeClear() {
-    PebbleRuntimeState = {
+function JsRuntime(appJsScript, pack, trigger, send_message, open_config_page) {
+
+    var cleanState = {
         handlers: {},
         ready: false,
         transactionId: 0,
+        callbacks: {},
+    };
+    var state = Object.assign({}, cleanState);
+    this.clear = function() {
+        state = Object.assign({}, cleanState);
     }
-}
-PebbleRuntimeClear();
 
-function PebbleRuntime(pack, send_message) {
+    var scriptStart, pebbleRuntime, consoleRuntime, localStorageRuntime;
+    this.init = function() {
+        if (!appJsScript) {
+            console.error('Application javascript was not downloaded!');
+            return;
+        }
+        if (!localStorageRuntime) {
+            var exceptions = [
+                'Object', 'Number', 'String', 'Boolean', 'RegExp', 'Date', 'Math', 'Array', 'JSON',
+                'Function', 'parseFloat', 'parseInt', 'undefined', 'eval', 'NaN', 'isNaN',
+                'decodeURI', 'decodeURIComponent',
+                'XMLHttpRequest', 'Pebble', 'console', 'localStorage'
+            ];
+            scriptStart = '"use strict";var ';
+            for (var p of Object.getOwnPropertyNames(window))
+                if (isNaN(+p) && exceptions.indexOf(p) === -1)
+                    scriptStart += p + ",";
+            scriptStart += "window;"
+
+            pebbleRuntime = new PebbleRuntime(state, pack, send_message, open_config_page);
+            consoleRuntime = new ConsoleRuntime(trigger);
+            localStorageRuntime = new LocalStorageRuntime();
+        }
+
+        new Function('Pebble', 'console', 'localStorage', scriptStart + appJsScript)
+            .call({}, pebbleRuntime, consoleRuntime, localStorageRuntime);
+
+        state.ready = true;
+
+        for (var handler of state.handlers['ready'])
+            handler.call({});
+    }
+
+    this.raiseCallback = function(transactionId, isSuccess, args) {
+        return state.callbacks[transactionId]?.[isSuccess ? 0 : 1]?.apply({}, args);
+    }
+
+    this.handleAppMessage = function(data) {
+        var handlers = state.handlers['appmessage'];
+        if (!handlers || handlers.length === 0)
+            return;
+
+        // the message is parsed until "count" field
+        // TODO: convert appmessage to the js format and pass to the handler
+    }
+
+    this.handle = function(eventName, args) {
+        var handlers = state.handlers[eventName.toLowerCase()];
+        if (!handlers || handlers.length === 0)
+            return;
+        for (var handler of handlers)
+            handler.apply({}, args);
+    }
+
+}
+
+function PebbleRuntime(state, pack, send_message, open_config_page) {
     var VALUE_TYPES = {
         ByteArray: 0,
         CString: 1,
@@ -18,7 +76,7 @@ function PebbleRuntime(pack, send_message) {
     }
 
     function ensureReady() {
-        if (!PebbleRuntimeState.ready)
+        if (!state.ready)
             throw new Error("Can't interact with the watch before the ready event is fired.");
     }
 
@@ -32,7 +90,7 @@ function PebbleRuntime(pack, send_message) {
     // command=0x01 => data=AppMessagePush
     //    uuid = UUID()
     //    count = Uint8()
-    //    dictionary = AppMessageTuple[]
+    //    dictionary = AppMessageTuple[] (little-endian!)
     //        key = Uint32()
     //        type = Uint8()
     //            ByteArray = 0
@@ -44,13 +102,14 @@ function PebbleRuntime(pack, send_message) {
     //
     // command=0xff => AppMessageACK (empty)
     // command=0x7f => AppMessageNACK (empty)
-    this.sendAppMessage = function(messageDict) {
+    this.sendAppMessage = function(messageDict, onSuccess, onFailure) {
         ensureReady();
 
         const kvpairs = Object.entries(messageDict);
 
-        let message = pack('BBUB', [0x01, PebbleRuntimeState.transactionId, CloudPebble.ProjectInfo.app_uuid, kvpairs.length]);
-        PebbleRuntimeState.transactionId = (PebbleRuntimeState.transactionId + 1) & 0xFF;
+        let message = pack('BBUB', [0x01, state.transactionId, CloudPebble.ProjectInfo.app_uuid, kvpairs.length]);
+        state.callbacks[state.transactionId] = [onSuccess, onFailure];
+        state.transactionId = (state.transactionId + 1) & 0xFF;
 
         for (const [k, v] of kvpairs) {
             const messageKey = CloudPebble.ProjectInfo.parsed_app_keys[k];
@@ -65,33 +124,11 @@ function PebbleRuntime(pack, send_message) {
                 }
             }
             if (typeof v === 'string')
-                message = message.concat(pack('IBHS', [messageKey, VALUE_TYPES.CString, v.length + 1, v + '\0']));
+                message = message.concat(pack('<IBHS', [messageKey, VALUE_TYPES.CString, v.length + 1, v + '\0']));
             else if (typeof v === 'number') {
-                let type, len, format;
-                if (v >= 0 && v <= 255) {
-                    type = VALUE_TYPES.UInt;
-                    len = 1;
-                    format = 'B';
-                } else if (v >= -127 && v <= 128) {
-                    type = VALUE_TYPES.Int;
-                    len = 1;
-                    format = 'b';
-                } else if (v >= 0 && v <= 65536) {
-                    type = VALUE_TYPES.UInt;
-                    len = 2;
-                    format = 'H';
-                } else if (v >= -32767 && v <= 32767) {
-                    type = VALUE_TYPES.Int;
-                    len = 2;
-                    format = 'h';
-                } else {
-                    type = v < 0 ? VALUE_TYPES.Int : VALUE_TYPES.UInt;
-                    len = 4;
-                    format = v < 0 ? 'i' : 'I';
-                }
-                message = message.concat(pack('IBH' + format, [messageKey, type, len, v]));
+                message = message.concat(pack('<IBHi', [messageKey, VALUE_TYPES.Int, 4, v]));
             } else
-                message = message.concat(pack('IBH', [messageKey, VALUE_TYPES.ByteArray, v.length]), v);
+                message = message.concat(pack('<IBH', [messageKey, VALUE_TYPES.ByteArray, v.length]), v);
             
         }
 
@@ -99,34 +136,36 @@ function PebbleRuntime(pack, send_message) {
 
     }
     this.showSimpleNotificationOnPebble = function () {
-    
+        
     }
     this.getAccountToken = function () {
-        return "";
+        return "0123456789abcdef0123456789abcdef";
     }
     this.getWatchToken = function () {
-        return "";
+        return "0123456789abcdef0123456789abcdef";
     }
     this.addEventListener = function (eventName, handler) {
-        if (!PebbleRuntimeState.handlers[eventName])
-            PebbleRuntimeState.handlers[eventName] = [];
-        PebbleRuntimeState.handlers[eventName].push(handler);
+        eventName = (""+eventName).toLowerCase();
+        if (!state.handlers[eventName])
+            state.handlers[eventName] = [];
+        state.handlers[eventName].push(handler);
     }
     this.removeEventListener = function (eventName, handler) {
-        if (PebbleRuntimeState.handlers[eventName]) {
-            for (var i = 0; i < PebbleRuntimeState.handlers[eventName].length; i++) {
-                if (PebbleRuntimeState.handlers[eventName][i] === handler) {
-                    PebbleRuntimeState.handlers[eventName].splice(i, 1);
+        eventName = (""+eventName).toLowerCase();
+        if (state.handlers[eventName]) {
+            for (var i = 0; i < state.handlers[eventName].length; i++) {
+                if (state.handlers[eventName][i] === handler) {
+                    state.handlers[eventName].splice(i, 1);
                     break;
                 }
             }
         }
     }
-    this.openURL = function () {
-    
+    this.openURL = function (url) {
+        return open_config_page("" + url);
     }
     this.getTimelineToken = function () {
-    
+        
     }
     this.timelineSubscribe = function () {
     
@@ -181,6 +220,12 @@ function LocalStorageRuntime() {
     this.setItem = function(key, value) {
         const storage = JSON.parse(localStorage.getItem(storageKey) || "{}");
         storage[key] = value;
+        const updated = JSON.stringify(storage);
+        localStorage.setItem(storageKey, updated);
+    };
+    this.removeItem = function(key) {
+        const storage = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        storage[key] = undefined;
         const updated = JSON.stringify(storage);
         localStorage.setItem(storageKey, updated);
     };

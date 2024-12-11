@@ -266,50 +266,39 @@ Pebble = function(proxy, token) {
         return new_url;
     };
 
-    var handle_config_message = function(data) {
-        var command = data[0];
-        if(command == 0x01) {
-            console.log(data);
-            var length = unpack("I", data.subarray(1))[0];
-            console.log(length);
-            var url = unpack("S" + length, data.subarray(5))[0];
-            console.log("opening url: " + url);
-            var new_url = manipulate_url(url);
-            console.log("new url: " + new_url);
+    var open_config_page = function(url) {
+        console.log("opening url: " + url);
+        var new_url = manipulate_url(url);
+        console.log("new url: " + new_url);
 
-            var configWindow = window.open(new_url, "emu_config", "width=375,height=567");
-            function poll() {
-                var spamInterval = setInterval(function () {
-                    if (configWindow.location && configWindow.location.host) {
-                        $(configWindow).off();
-                        clearInterval(spamInterval);
-                        console.log("there!");
-                        configWindow.postMessage('hi', '*');
-                        $(window).one('message', function (event) {
-                            var config = event.originalEvent.data;
-                            console.log('got config data: ', config);
-                            var data = new Uint8Array(pack("BBIS", [0x0a, 0x02, config.length, config]));
-                            console.log(data);
-                            mSocket.send(data);
-                            configWindow.close();
-                        });
-                    } else if (configWindow.closed) {
-                        console.log('it closed.');
-                        clearInterval(spamInterval);
-                        $(window).off('message');
-                        var data = new Uint8Array(pack("BB", [0x0a, 0x03]));
-                        mSocket.send(data);
-                    }
-                }, 1000);
-            }
-            if(!configWindow) {
-                CloudPebble.Prompts.Confirm("Config page", "It looks like you have a popup blocker enabled. Click continue to open the config page.", function() {
-                    configWindow = window.open(new_url, "emu_config", "width=375,height=567");
-                    poll();
-                });
-            } else {
+        var configWindow = window.open(new_url, "emu_config", "width=375,height=567");
+        function poll() {
+            var spamInterval = setInterval(function () {
+                if (configWindow.location && configWindow.location.host) {
+                    $(configWindow).off();
+                    clearInterval(spamInterval);
+                    console.log("there!");
+                    configWindow.postMessage('hi', '*');
+                    $(window).one('message', function (event) {
+                        var config = event.originalEvent.data;
+                        console.log('got config data: ', config);
+                        runtime.handle('webviewclosed', [{ response: config }]);
+                        configWindow.close();
+                    });
+                } else if (configWindow.closed) {
+                    console.log('it closed.');
+                    clearInterval(spamInterval);
+                    $(window).off('message');
+                }
+            }, 1000);
+        }
+        if(!configWindow) {
+            CloudPebble.Prompts.Confirm("Config page", "It looks like you have a popup blocker enabled. Click continue to open the config page.", function() {
+                configWindow = window.open(new_url, "emu_config", "width=375,height=567");
                 poll();
-            }
+            });
+        } else {
+            poll();
         }
     };
 
@@ -487,53 +476,38 @@ Pebble = function(proxy, token) {
         }
     };
 
-    var scriptStart, appJsScript;
-    var pebbleRuntime, consoleRuntime, localStorageRuntime;
+    var appJsScript, runtime;
     var handle_app_start = function(data) {
         var [command, uuid] = unpack('BU', data);
         if (command === 1 && uuid === CloudPebble.ProjectInfo.app_uuid) {
             console.log("Starting PebbleKitJS application");
-            if (!appJsScript) {
-                console.error('Application javascript was not downloaded!');
-                return;
-            }
-            if (!localStorageRuntime) {
-                var exceptions = [
-                    'Object', 'Number', 'String', 'Boolean', 'RegExp', 'Date', 'Math', 'Array', 'JSON',
-                    'Function', 'parseFloat', 'parseInt', 'undefined', 'eval', 'NaN', 'isNaN',
-                    'XMLHttpRequest', 'Pebble', 'console', 'localStorage'
-                ];
-                scriptStart = '"use strict";var ';
-                for (var p of Object.getOwnPropertyNames(window))
-                    if (isNaN(+p) && exceptions.indexOf(p) === -1)
-                        scriptStart += p + ",";
-                scriptStart += "window;"
-
-                pebbleRuntime = new PebbleRuntime(pack, send_message);
-                consoleRuntime = new ConsoleRuntime(self.trigger.bind(self));
-                localStorageRuntime = new LocalStorageRuntime();
-            }
-            new Function('Pebble', 'console', 'localStorage', scriptStart + appJsScript)
-                .call({}, pebbleRuntime, consoleRuntime, localStorageRuntime);
-
-            PebbleRuntimeState.ready = true;
-
-            for (var handler of PebbleRuntimeState.handlers['ready'])
-                handler.call({});
+            if (!runtime)
+                runtime = new JsRuntime(appJsScript, pack, self.trigger.bind(self), send_message, open_config_page);
+            runtime.init();
         } else if (command === 2 && uuid === CloudPebble.ProjectInfo.app_uuid) {
             console.log("Stopping PebbleKitJS application");
-            PebbleRuntimeClear()
+            runtime.clear();
         }
     }
 
-    this.handle_app_message = function(data) {
+    var handle_app_message = function(data) {
         var [command, transactionId] = unpack('BB', data);
-        if (command === 0xFF)
+        if (command === 0xFF) {
             console.log('App_message transaction ' + transactionId + ' succeeded!');
-        else if (command === 0x7f)
+            if (runtime)
+                runtime.raiseCallback(transactionId, true);
+        } else if (command === 0x7f) {
             console.warn('App_message transaction ' + transactionId + ' failed!');
-        else if (command === 0x01)
-            console.log('App_message arrived'); // TODO: parse and pass to handlers
+            if (runtime)
+                runtime.raiseCallback(transactionId, false);
+        } else if (command === 0x01) {
+            var uuid = unpack('U', data.subarray(2));
+            if (uuid === CloudPebble.ProjectInfo.app_uuid) {
+                console.log('App_message arrived!');
+                if (runtime)
+                    runtime.handleAppMessage(data.subarray(18));
+            }
+        }
     }
 
     this.request_screenshot = function() {
@@ -546,11 +520,9 @@ Pebble = function(proxy, token) {
     };
 
     this.request_config_page = function() {
-        if(!self.is_connected()) {
-            throw new Error("Cannot send on non-open socket.");
-        }
-        var data = new Uint8Array([0x0a, 0x01]);
-        mSocket.send(data);
+        if(!runtime)
+            throw new Error("Js not running. Cannot request config page.");
+        runtime.handle('showconfiguration')
     };
 
     this.emu_set_battery_state = function(percent, charging) {
@@ -892,33 +864,63 @@ Pebble = function(proxy, token) {
 
     // Handy utility function to pack data.
     var pack = function(format, data) {
+
+        var endianness = '>';
         var pointer = 0;
         var bytes = [];
         var encoder = new TextEncoder('utf-8');
+
+        var pack_number = {
+            '>': {
+                'h': function(n) {
+                    bytes.push((n >> 8) & 0xFF);
+                    bytes.push(n & 0xFF);
+                },
+                'i': function(n) {
+                    bytes.push((n >> 24) & 0xFF);
+                    bytes.push((n >> 16) & 0xFF);
+                    bytes.push((n >> 8) & 0xFF);
+                    bytes.push(n & 0xFF);
+                }
+            },
+            '<': {
+                'h': function(n) {
+                    bytes.push(n & 0xFF);
+                    bytes.push((n >> 8) & 0xFF);
+                },
+                'i': function(n) {
+                    bytes.push(n & 0xFF);
+                    bytes.push((n >> 8) & 0xFF);
+                    bytes.push((n >> 16) & 0xFF);
+                    bytes.push((n >> 24) & 0xFF);
+                }
+            }
+        }
+
         for(var i = 0; i < format.length; ++i) {
             if(pointer >= data.length) {
                 throw new Error("Expected more data.");
             }
             var chr = format.charAt(i);
             switch(chr) {
+            case "<":
+            case ">":
+                endianness = chr;
+                break;
             case "b":
             case "B":
                 bytes.push(data[pointer++]);
                 break;
             case "h":
             case "H":
-                bytes.push((data[pointer] >> 8) & 0xFF);
-                bytes.push(data[pointer] & 0xFF);
+                pack_number[endianness]['h'](data[pointer]);
                 ++pointer;
                 break;
             case "l":
             case "L":
             case "i":
             case "I":
-                bytes.push((data[pointer] >> 24) & 0xFF);
-                bytes.push((data[pointer] >> 16) & 0xFF);
-                bytes.push((data[pointer] >> 8) & 0xFF);
-                bytes.push(data[pointer] & 0xFF);
+                pack_number[endianness]['i'](data[pointer]);
                 ++pointer;
                 break;
             case "S":
@@ -927,22 +929,14 @@ Pebble = function(proxy, token) {
                 break;
             case "U":
                 var x = parseInt(data[pointer].substring(0, 8), 16);
-                bytes.push((x >> 24) & 0xFF);
-                bytes.push((x >> 16) & 0xFF);
-                bytes.push((x >> 8) & 0xFF);
-                bytes.push(x & 0xFF);
+                pack_number[endianness]['i'](x);
 
                 x = parseInt(data[pointer].substring(9, 13), 16);
-                bytes.push((x >> 8) & 0xFF);
-                bytes.push(x & 0xFF);
-
+                pack_number[endianness]['h'](x);
                 x = parseInt(data[pointer].substring(14, 18), 16);
-                bytes.push((x >> 8) & 0xFF);
-                bytes.push(x & 0xFF);
-
+                pack_number[endianness]['h'](x);
                 x = parseInt(data[pointer].substring(19, 23), 16);
-                bytes.push((x >> 8) & 0xFF);
-                bytes.push(x & 0xFF);
+                pack_number[endianness]['h'](x);
 
                 x = parseInt(data[pointer].substring(24, 26), 16);
                 bytes.push(x & 0xFF);
