@@ -217,6 +217,8 @@ if host_os == 'WINDOWS' then
     local build_dir = path.join(rootfs_dir, 'pebble/assembled/build')
     local pbw = assert_fail_build(Slurp(path.join(build_dir, 'assembled.pbw')))
     assert_fail_build(Barf('.pebble/builds/' .. build_uuid .. '.pbw', pbw))
+    local pjs = assert_fail_build(Slurp(path.join(build_dir, 'pebble-js-app.js')))
+    assert_fail_build(Barf('.pebble/builds/' .. build_uuid .. '.js', pjs))
     local sizeInfo = {}
     for _, p in ipairs(app_info.targetPlatforms) do
         local app_stat = assert_fail_build(unix.stat(path.join(build_dir, p, 'pebble-app.bin')))

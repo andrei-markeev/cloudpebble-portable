@@ -59,6 +59,7 @@ Pebble = function(proxy, token) {
 
     var mIsInstalling = false;
     this.install_app = function(url) {
+        appJsScript = null;
         console.log("Starting install process.");
         var request = new XMLHttpRequest();
         request.open('get', url, true);
@@ -78,6 +79,18 @@ Pebble = function(proxy, token) {
         };
         request.send();
     };
+
+    this.prepare_js = function(url) {
+        var request = new XMLHttpRequest();
+        request.open('get', url, true);
+        request.onload = function(event) {
+            if (request.status === 200) {
+                appJsScript = request.responseText;
+                console.log('JS prepared.')
+            }
+        };
+        request.send()
+    }
 
     this.enable_app_logs = function() {
         enable_app_logs();
@@ -207,6 +220,10 @@ Pebble = function(proxy, token) {
                     handle_factory_setting(message);
                 } else if (command == ENDPOINTS.PUTBYTES) {
                     handle_receive_putbytes(message);
+                } else if (command == ENDPOINTS.APPSTART) {
+                    handle_app_start(message);
+                } else if (command == ENDPOINTS.APPLICATION_MESSAGE) {
+                    handle_app_message(message);
                 }
             }
             catch (e) {
@@ -241,7 +258,7 @@ Pebble = function(proxy, token) {
         if(query_parts[1] != '') {
             query_parts[1] += '&';
         }
-        query_parts[1] += 'return_to=' + escape(location.protocol + '//' + location.host + '/qemu-config-callback.html?');
+        query_parts[1] += 'return_to=' + encodeURIComponent(location.protocol + '//' + location.host + '/qemu-config-callback.html?');
         var new_url = query_parts.join('?');
         if(hash_parts.length > 1) {
             new_url += '#' + hash_parts[1];
@@ -469,6 +486,55 @@ Pebble = function(proxy, token) {
             self.trigger('factory_setting:result', value);
         }
     };
+
+    var scriptStart, appJsScript;
+    var pebbleRuntime, consoleRuntime, localStorageRuntime;
+    var handle_app_start = function(data) {
+        var [command, uuid] = unpack('BU', data);
+        if (command === 1 && uuid === CloudPebble.ProjectInfo.app_uuid) {
+            console.log("Starting PebbleKitJS application");
+            if (!appJsScript) {
+                console.error('Application javascript was not downloaded!');
+                return;
+            }
+            if (!localStorageRuntime) {
+                var exceptions = [
+                    'Object', 'Number', 'String', 'Boolean', 'RegExp', 'Date', 'Math', 'Array', 'JSON',
+                    'Function', 'parseFloat', 'parseInt', 'undefined', 'eval', 'NaN', 'isNaN',
+                    'XMLHttpRequest', 'Pebble', 'console', 'localStorage'
+                ];
+                scriptStart = '"use strict";var ';
+                for (var p of Object.getOwnPropertyNames(window))
+                    if (isNaN(+p) && exceptions.indexOf(p) === -1)
+                        scriptStart += p + ",";
+                scriptStart += "window;"
+
+                pebbleRuntime = new PebbleRuntime(pack, send_message);
+                consoleRuntime = new ConsoleRuntime(self.trigger.bind(self));
+                localStorageRuntime = new LocalStorageRuntime();
+            }
+            new Function('Pebble', 'console', 'localStorage', scriptStart + appJsScript)
+                .call({}, pebbleRuntime, consoleRuntime, localStorageRuntime);
+
+            PebbleRuntimeState.ready = true;
+
+            for (var handler of PebbleRuntimeState.handlers['ready'])
+                handler.call({});
+        } else if (command === 2 && uuid === CloudPebble.ProjectInfo.app_uuid) {
+            console.log("Stopping PebbleKitJS application");
+            PebbleRuntimeClear()
+        }
+    }
+
+    this.handle_app_message = function(data) {
+        var [command, transactionId] = unpack('BB', data);
+        if (command === 0xFF)
+            console.log('App_message transaction ' + transactionId + ' succeeded!');
+        else if (command === 0x7f)
+            console.warn('App_message transaction ' + transactionId + ' failed!');
+        else if (command === 0x01)
+            console.log('App_message arrived'); // TODO: parse and pass to handlers
+    }
 
     this.request_screenshot = function() {
         console.log("Requesting screenshot.");
@@ -779,6 +845,7 @@ Pebble = function(proxy, token) {
         "PHONE_CONTROL": 33,
         "APPLICATION_MESSAGE": 48,
         "LAUNCHER": 49,
+        "APPSTART": 52,
         "LOGS": 2000,
         "PING": 2001,
         "LOG_DUMP": 2002,
@@ -858,6 +925,40 @@ Pebble = function(proxy, token) {
                 bytes = bytes.concat(Array.prototype.slice.call(encoder.encode(data[pointer])));
                 ++pointer;
                 break;
+            case "U":
+                var x = parseInt(data[pointer].substring(0, 8), 16);
+                bytes.push((x >> 24) & 0xFF);
+                bytes.push((x >> 16) & 0xFF);
+                bytes.push((x >> 8) & 0xFF);
+                bytes.push(x & 0xFF);
+
+                x = parseInt(data[pointer].substring(9, 13), 16);
+                bytes.push((x >> 8) & 0xFF);
+                bytes.push(x & 0xFF);
+
+                x = parseInt(data[pointer].substring(14, 18), 16);
+                bytes.push((x >> 8) & 0xFF);
+                bytes.push(x & 0xFF);
+
+                x = parseInt(data[pointer].substring(19, 23), 16);
+                bytes.push((x >> 8) & 0xFF);
+                bytes.push(x & 0xFF);
+
+                x = parseInt(data[pointer].substring(24, 26), 16);
+                bytes.push(x & 0xFF);
+                x = parseInt(data[pointer].substring(26, 28), 16);
+                bytes.push(x & 0xFF);
+                x = parseInt(data[pointer].substring(28, 30), 16);
+                bytes.push(x & 0xFF);
+                x = parseInt(data[pointer].substring(30, 32), 16);
+                bytes.push(x & 0xFF);
+                x = parseInt(data[pointer].substring(32, 34), 16);
+                bytes.push(x & 0xFF);
+                x = parseInt(data[pointer].substring(34, 36), 16);
+                bytes.push(x & 0xFF);
+
+                ++pointer;
+                break;
             }
         }
         return bytes;
@@ -907,6 +1008,17 @@ Pebble = function(proxy, token) {
                 var output = decoder.decode(stringBytes);
                 pointer = end;
                 data.push(output);
+                break;
+            case "U":
+                data.push(
+                    bytes[pointer].toString(16) + bytes[pointer + 1].toString(16) + bytes[pointer + 2].toString(16) + bytes[pointer + 3].toString(16) + '-'
+                    + bytes[pointer + 4].toString(16) + bytes[pointer + 5].toString(16) + '-'
+                    + bytes[pointer + 6].toString(16) + bytes[pointer + 7].toString(16) + '-'
+                    + bytes[pointer + 8].toString(16) + bytes[pointer + 9].toString(16) + '-'
+                    + bytes[pointer + 10].toString(16) + bytes[pointer + 11].toString(16) + bytes[pointer + 12].toString(16)
+                    + bytes[pointer + 13].toString(16) + bytes[pointer + 14].toString(16) + bytes[pointer + 15].toString(16)
+                );
+                pointer += 16
                 break;
             }
         }

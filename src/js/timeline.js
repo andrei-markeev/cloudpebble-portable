@@ -107,6 +107,7 @@ CloudPebble.Timeline = new (function() {
         let successful = 0;
         let pebble = null;
 
+        // TODO: progress bar
         try {
             
             pebble = await SharedPebble.getPebble(ConnectionType.QemuBasalt);
