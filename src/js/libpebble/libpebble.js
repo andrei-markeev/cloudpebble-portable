@@ -482,7 +482,7 @@ Pebble = function(proxy, token) {
         if (command === 1 && uuid === CloudPebble.ProjectInfo.app_uuid) {
             console.log("Starting PebbleKitJS application");
             if (!runtime)
-                runtime = new JsRuntime(appJsScript, pack, self.trigger.bind(self), send_message, open_config_page);
+                runtime = new JsRuntime(appJsScript, pack, unpack, self.trigger.bind(self), send_message, open_config_page);
             runtime.init();
         } else if (command === 2 && uuid === CloudPebble.ProjectInfo.app_uuid) {
             console.log("Stopping PebbleKitJS application");
@@ -501,7 +501,7 @@ Pebble = function(proxy, token) {
             if (runtime)
                 runtime.raiseCallback(transactionId, false);
         } else if (command === 0x01) {
-            var uuid = unpack('U', data.subarray(2));
+            var [uuid] = unpack('U', data.subarray(2));
             if (uuid === CloudPebble.ProjectInfo.app_uuid) {
                 console.log('App_message arrived!');
                 if (runtime)
@@ -959,9 +959,30 @@ Pebble = function(proxy, token) {
     };
 
     var unpack = function(format, bytes) {
+        var endianness = '>';
         var pointer = 0;
         var data = [];
         var decoder = new TextDecoder('utf-8');
+
+        var unpack_number = {
+            '>': {
+                'h': function() {
+                    data.push((bytes[pointer] << 8) | bytes[pointer+1]);
+                },
+                'i': function(n) {
+                    data.push((bytes[pointer] << 24) | (bytes[pointer+1] << 16) | (bytes[pointer+2] << 8) | bytes[pointer+3]);
+                }
+            },
+            '<': {
+                'h': function(n) {
+                    data.push((bytes[pointer+1] << 8) | bytes[pointer]);
+                },
+                'i': function(n) {
+                    data.push((bytes[pointer+3] << 24) | (bytes[pointer+2] << 16) | (bytes[pointer+1] << 8) | bytes[pointer]);
+                }
+            }
+        }
+
         for(var i = 0; i < format.length; ++i) {
             if(pointer >= bytes.length) {
                 console.error("ran out of bytes.", format, bytes);
@@ -969,20 +990,24 @@ Pebble = function(proxy, token) {
             }
             var chr = format.charAt(i);
             switch(chr) {
+            case ">":
+            case "<":
+                endianness = chr;
+                break;
             case "b":
             case "B":
                 data.push(bytes[pointer++]);
                 break;
             case "h":
             case "H":
-                data.push((bytes[pointer] << 8) | bytes[pointer+1]);
+                unpack_number[endianness]['h']();
                 pointer += 2;
                 break;
             case "l":
             case "L":
             case "i":
             case "I":
-                data.push((bytes[pointer] << 24) | (bytes[pointer+1] << 16) | (bytes[pointer+2] << 8) | bytes[pointer+3]);
+                unpack_number[endianness]['i']();
                 pointer += 4;
                 break;
             case "S":
@@ -1004,14 +1029,24 @@ Pebble = function(proxy, token) {
                 data.push(output);
                 break;
             case "U":
-                data.push(
-                    bytes[pointer].toString(16) + bytes[pointer + 1].toString(16) + bytes[pointer + 2].toString(16) + bytes[pointer + 3].toString(16) + '-'
-                    + bytes[pointer + 4].toString(16) + bytes[pointer + 5].toString(16) + '-'
-                    + bytes[pointer + 6].toString(16) + bytes[pointer + 7].toString(16) + '-'
-                    + bytes[pointer + 8].toString(16) + bytes[pointer + 9].toString(16) + '-'
-                    + bytes[pointer + 10].toString(16) + bytes[pointer + 11].toString(16) + bytes[pointer + 12].toString(16)
-                    + bytes[pointer + 13].toString(16) + bytes[pointer + 14].toString(16) + bytes[pointer + 15].toString(16)
-                );
+                if (endianness === '>')
+                    data.push(
+                        bytes[pointer].toString(16) + bytes[pointer + 1].toString(16) + bytes[pointer + 2].toString(16) + bytes[pointer + 3].toString(16) + '-'
+                        + bytes[pointer + 4].toString(16) + bytes[pointer + 5].toString(16) + '-'
+                        + bytes[pointer + 6].toString(16) + bytes[pointer + 7].toString(16) + '-'
+                        + bytes[pointer + 8].toString(16) + bytes[pointer + 9].toString(16) + '-'
+                        + bytes[pointer + 10].toString(16) + bytes[pointer + 11].toString(16) + bytes[pointer + 12].toString(16)
+                        + bytes[pointer + 13].toString(16) + bytes[pointer + 14].toString(16) + bytes[pointer + 15].toString(16)
+                    );
+                else
+                    data.push(
+                        bytes[pointer + 3].toString(16) + bytes[pointer + 2].toString(16) + bytes[pointer + 1].toString(16) + bytes[pointer].toString(16) + '-'
+                        + bytes[pointer + 5].toString(16) + bytes[pointer + 4].toString(16) + '-'
+                        + bytes[pointer + 7].toString(16) + bytes[pointer + 6].toString(16) + '-'
+                        + bytes[pointer + 9].toString(16) + bytes[pointer + 8].toString(16) + '-'
+                        + bytes[pointer + 10].toString(16) + bytes[pointer + 11].toString(16) + bytes[pointer + 12].toString(16)
+                        + bytes[pointer + 13].toString(16) + bytes[pointer + 14].toString(16) + bytes[pointer + 15].toString(16)
+                    );
                 pointer += 16
                 break;
             }

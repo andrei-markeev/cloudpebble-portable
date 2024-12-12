@@ -1,85 +1,4 @@
-function JsRuntime(appJsScript, pack, trigger, send_message, open_config_page) {
-
-    var cleanState = {
-        handlers: {},
-        ready: false,
-        transactionId: 0,
-        callbacks: {},
-    };
-    var state = Object.assign({}, cleanState);
-    this.clear = function() {
-        state = Object.assign({}, cleanState);
-    }
-
-    var scriptStart, pebbleRuntime, consoleRuntime, localStorageRuntime;
-    this.init = function() {
-        if (!appJsScript) {
-            console.error('Application javascript was not downloaded!');
-            return;
-        }
-        if (!localStorageRuntime) {
-            var exceptions = [
-                'Object', 'Number', 'String', 'Boolean', 'RegExp', 'Date', 'Math', 'Array', 'JSON',
-                'Function', 'parseFloat', 'parseInt', 'undefined', 'eval', 'NaN', 'isNaN',
-                'decodeURI', 'decodeURIComponent',
-                'XMLHttpRequest', 'Pebble', 'console', 'localStorage'
-            ];
-            scriptStart = '"use strict";var ';
-            for (var p of Object.getOwnPropertyNames(window))
-                if (isNaN(+p) && exceptions.indexOf(p) === -1)
-                    scriptStart += p + ",";
-            scriptStart += "window;"
-
-            pebbleRuntime = new PebbleRuntime(state, pack, send_message, open_config_page);
-            consoleRuntime = new ConsoleRuntime(trigger);
-            localStorageRuntime = new LocalStorageRuntime();
-        }
-
-        new Function('Pebble', 'console', 'localStorage', scriptStart + appJsScript)
-            .call({}, pebbleRuntime, consoleRuntime, localStorageRuntime);
-
-        state.ready = true;
-
-        for (var handler of state.handlers['ready'])
-            handler.call({});
-    }
-
-    this.raiseCallback = function(transactionId, isSuccess, args) {
-        return state.callbacks[transactionId]?.[isSuccess ? 0 : 1]?.apply({}, args);
-    }
-
-    this.handleAppMessage = function(data) {
-        var handlers = state.handlers['appmessage'];
-        if (!handlers || handlers.length === 0)
-            return;
-
-        // the message is parsed until "count" field
-        // TODO: convert appmessage to the js format and pass to the handler
-    }
-
-    this.handle = function(eventName, args) {
-        var handlers = state.handlers[eventName.toLowerCase()];
-        if (!handlers || handlers.length === 0)
-            return;
-        for (var handler of handlers)
-            handler.apply({}, args);
-    }
-
-}
-
-function PebbleRuntime(state, pack, send_message, open_config_page) {
-    var VALUE_TYPES = {
-        ByteArray: 0,
-        CString: 1,
-        UInt: 2,
-        Int: 3
-    }
-
-    function ensureReady() {
-        if (!state.ready)
-            throw new Error("Can't interact with the watch before the ready event is fired.");
-    }
-
+function AppMessageService(pack, unpack) {
     // Message format:
     //
     // endpoint Uint16 = APPLICATION_MESSAGE (0x30)
@@ -102,14 +21,49 @@ function PebbleRuntime(state, pack, send_message, open_config_page) {
     //
     // command=0xff => AppMessageACK (empty)
     // command=0x7f => AppMessageNACK (empty)
-    this.sendAppMessage = function(messageDict, onSuccess, onFailure) {
-        ensureReady();
 
+    var VALUE_TYPES = {
+        ByteArray: 0,
+        CString: 1,
+        UInt: 2,
+        Int: 3
+    }
+
+    this.parseTuples = function(data) {
+        var intkey_to_strkey = {};
+        for (var [strkey, intkey] of Object.entries(CloudPebble.ProjectInfo.parsed_app_keys))
+            intkey_to_strkey[intkey] = strkey;
+
+        // the message is parsed until "count" field
+        var result = {};
+        var [count] = unpack("B", data);
+        data = data.subarray(1);
+        for (var i = 0; i < count; i++) {
+            var [intkey, type, len] = unpack("<IBH", data);
+            data = data.subarray(4 + 1 + 2);
+            var strkey = intkey_to_strkey[intkey];
+            if (type === VALUE_TYPES.Int || type === VALUE_TYPES.UInt)
+                result[strkey] = unpack("<i", data)[0];
+            else if (type === VALUE_TYPES.CString)
+                if (len === 1)
+                    result[strkey] = ""
+                else
+                    result[strkey] = unpack("S" + len - 1, data)[0];
+            else if (type === VALUE_TYPES.ByteArray)
+                result[strkey] = data.subarray(0, len);
+            else {
+                console.error("Invalid tuple:", new Uint8Array(data))
+                throw new Error("Failed to parse appmessage!");
+            }
+            data = data.subarray(len);
+        }
+        return result;
+    }
+
+    this.prepare = function(messageDict, transactionId) {
         const kvpairs = Object.entries(messageDict);
 
-        let message = pack('BBUB', [0x01, state.transactionId, CloudPebble.ProjectInfo.app_uuid, kvpairs.length]);
-        state.callbacks[state.transactionId] = [onSuccess, onFailure];
-        state.transactionId = (state.transactionId + 1) & 0xFF;
+        let message = pack('BBUB', [0x01, transactionId, CloudPebble.ProjectInfo.app_uuid, kvpairs.length]);
 
         for (const [k, v] of kvpairs) {
             const messageKey = CloudPebble.ProjectInfo.parsed_app_keys[k];
@@ -129,8 +83,95 @@ function PebbleRuntime(state, pack, send_message, open_config_page) {
                 message = message.concat(pack('<IBHi', [messageKey, VALUE_TYPES.Int, 4, v]));
             } else
                 message = message.concat(pack('<IBH', [messageKey, VALUE_TYPES.ByteArray, v.length]), v);
-            
         }
+
+        return message;
+    }
+}
+
+function JsRuntime(appJsScript, pack, unpack, trigger, send_message, open_config_page) {
+
+    var cleanState = {
+        handlers: {},
+        ready: false,
+        transactionId: 0,
+        callbacks: {},
+    };
+    var state = Object.assign({}, cleanState);
+    this.clear = function() {
+        state = Object.assign({}, cleanState);
+    }
+
+    var appMessageService, scriptStart, pebbleRuntime, consoleRuntime, localStorageRuntime;
+    this.init = function() {
+        if (!appJsScript) {
+            console.error('Application javascript was not downloaded!');
+            return;
+        }
+        if (!localStorageRuntime) {
+            var exceptions = [
+                'Object', 'Number', 'String', 'Boolean', 'RegExp', 'Date', 'Math', 'Array', 'JSON',
+                'Function', 'parseFloat', 'parseInt', 'undefined', 'eval', 'NaN', 'isNaN',
+                'decodeURI', 'decodeURIComponent', 'encodeURI', 'encodeURIComponent',
+                'XMLHttpRequest', 'Pebble', 'console', 'localStorage'
+            ];
+            scriptStart = '"use strict";var ';
+            for (var p of Object.getOwnPropertyNames(window))
+                if (isNaN(+p) && exceptions.indexOf(p) === -1)
+                    scriptStart += p + ",";
+            scriptStart += "window;"
+
+            appMessageService = new AppMessageService(pack, unpack);
+            pebbleRuntime = new PebbleRuntime(state, appMessageService, send_message, open_config_page);
+            consoleRuntime = new ConsoleRuntime(trigger);
+            localStorageRuntime = new LocalStorageRuntime();
+        }
+
+        new Function('Pebble', 'console', 'localStorage', scriptStart + appJsScript)
+            .call({}, pebbleRuntime, consoleRuntime, localStorageRuntime);
+
+        state.ready = true;
+
+        for (var handler of state.handlers['ready'])
+            handler.call({});
+    }
+
+    this.raiseCallback = function(transactionId, isSuccess, args) {
+        return state.callbacks[transactionId]?.[isSuccess ? 0 : 1]?.apply({}, args);
+    }
+
+    this.handleAppMessage = function(data) {
+        var handlers = state.handlers['appmessage'];
+        if (!handlers || handlers.length === 0)
+            return;
+
+        var result = appMessageService.parseTuples(data);
+        this.handle('appmessage', [{ payload: result }]);
+    }
+
+    this.handle = function(eventName, args) {
+        var handlers = state.handlers[eventName.toLowerCase()];
+        if (!handlers || handlers.length === 0)
+            return;
+        for (var handler of handlers)
+            handler.apply({}, args);
+    }
+
+}
+
+function PebbleRuntime(state, appMessageService, send_message, open_config_page) {
+    function ensureReady() {
+        if (!state.ready)
+            throw new Error("Can't interact with the watch before the ready event is fired.");
+    }
+
+    this.sendAppMessage = function(messageDict, onSuccess, onFailure) {
+        ensureReady();
+
+        var message = appMessageService.prepare(messageDict, state.transactionId);
+
+        state.callbacks[state.transactionId] = [onSuccess, onFailure];
+        state.transactionId = (state.transactionId + 1) & 0xFF;
 
         send_message('APPLICATION_MESSAGE', message);
 
