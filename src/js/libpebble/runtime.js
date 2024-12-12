@@ -48,7 +48,7 @@ function AppMessageService(pack, unpack) {
                 if (len === 1)
                     result[strkey] = ""
                 else
-                    result[strkey] = unpack("S" + len - 1, data)[0];
+                    result[strkey] = unpack("S" + (len - 1), data)[0];
             else if (type === VALUE_TYPES.ByteArray)
                 result[strkey] = data.subarray(0, len);
             else {
@@ -112,7 +112,7 @@ function JsRuntime(appJsScript, pack, unpack, trigger, send_message, open_config
             var exceptions = [
                 'Object', 'Number', 'String', 'Boolean', 'RegExp', 'Date', 'Math', 'Array', 'JSON',
                 'Function', 'parseFloat', 'parseInt', 'undefined', 'eval', 'NaN', 'isNaN',
-                'decodeURI', 'decodeURIComponent', 'encodeURI', 'encodeURIComponent',
+                'decodeURI', 'decodeURIComponent', 'encodeURI', 'encodeURIComponent', 'escape', 'unescape',
                 'XMLHttpRequest', 'Pebble', 'console', 'localStorage'
             ];
             scriptStart = '"use strict";var ';
@@ -127,8 +127,8 @@ function JsRuntime(appJsScript, pack, unpack, trigger, send_message, open_config
             localStorageRuntime = new LocalStorageRuntime();
         }
 
-        new Function('Pebble', 'console', 'localStorage', scriptStart + appJsScript)
-            .call({}, pebbleRuntime, consoleRuntime, localStorageRuntime);
+        new Function('Pebble', 'console', 'localStorage', 'XMLHttpRequest', scriptStart + appJsScript)
+            .call({}, pebbleRuntime, consoleRuntime, localStorageRuntime, ProxiedXMLHttpRequest);
 
         state.ready = true;
 
@@ -274,4 +274,59 @@ function LocalStorageRuntime() {
         localStorage.removeItem(storageKey);
     };
     // TODO: add more methods
+}
+
+function ProxiedXMLHttpRequest() {
+
+    this.UNSENT = 0;
+    this.OPENED = 1;
+    this.HEADERS_RECEIVED = 2;
+    this.LOADING = 3;
+    this.DONE = 4;
+
+    this.readyState = self.UNSENT
+
+    var xhr = new XMLHttpRequest();
+
+    this.open = (method, url, async = true, user = null, password = null) => {
+        xhr.open("POST", "/api/make-request.lua", async);
+        xhr.setRequestHeader('X-Url', url);
+        xhr.setRequestHeader('X-Method', method);
+        if (user != null) {
+            xhr.setRequestHeader('X-Authorization', btoa(user + ":" + password));
+        }
+    }
+
+    this.setRequestHeader = (header, value) => xhr.setRequestHeader('X-CPP-' + header, value);
+
+    this.send = (data) => {
+        if (this.onreadystatechange) xhr.onreadystatechange = this.onreadystatechange.bind(this);
+        if (this.ontimeout) xhr.ontimeout = this.ontimeout.bind(this);
+        if (this.onloadstart) xhr.onloadstart = this.onloadstart.bind(this);
+        if (this.onloadend) xhr.onloadend = this.onloadend.bind(this);
+        if (this.onprogress) xhr.onprogress = this.onprogress.bind(this);
+        if (this.onerror) xhr.onerror = this.onerror.bind(this);
+        if (this.onabort) xhr.onabort = this.onabort.bind(this);
+        xhr.responseType = this.responseType;
+        xhr.onload = (e) => {
+            this.readyState = xhr.readyState;
+            this.status = xhr.status;
+            this.statusText = xhr.statusText;
+            this.response = xhr.response;
+            this.responseText = xhr.response;
+            if (this.onload)
+                this.onload(e);
+            if (this.onloadend)
+                this.onloadend(e);
+            if (this.onreadystatechange)
+                this.onreadystatechange(e);
+        };
+        xhr.send(data)
+    }
+
+    this.overrideMimeType = (mimetype) => xhr.overrideMimeType(mimetype);
+
+    this.getResponseHeader = (header) => xhr.getResponseHeader(header);
+    this.getAllResponseHeaders = () => xhr.getAllResponseHeaders();
+    this.abort = () => xhr.abort();
 }
