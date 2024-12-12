@@ -377,11 +377,12 @@ Pebble = function(proxy, token) {
         return result;
     };
 
+    var versionInfo;
     var handle_version = function(message) {
         console.log("Received watch version.");
         var result = unpack("BIS32S8BBBIS32S8BBBIS9S12BBBBBBIIS16", message);
         if(result[0] != 1) return;
-        self.trigger('version', {
+        var fullInfo = {
             running: {
                 timestamp: result[1],
                 version: result[2],
@@ -407,7 +408,14 @@ Pebble = function(proxy, token) {
                 timestamp: result[23],
                 XXXXXXXXXXXXXXX: result[24]
             }
-        });
+        };
+        var [_, major, minor, patch, suffix] = result[2].match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\-(.*))?$/);
+        if (!versionInfo)
+            versionInfo = {};
+        versionInfo.platform = Pebble.version_to_platform(fullInfo);
+        versionInfo.language = result[24];
+        versionInfo.firmware = { major: +major, minor: +minor || 0, patch: +patch || 0, suffix: suffix || "" };
+        self.trigger('version', fullInfo);
     };
 
     var request_factory_setting = function(key) {
@@ -448,6 +456,18 @@ Pebble = function(proxy, token) {
             var colour_id = unpack('I', data)[0];
             var colour_name = colour_mapping[colour_id] || 'unknown';
             self.trigger('colour', colour_name);
+
+            if (!versionInfo)
+                versionInfo = {};
+            if (colour_name === 'unknown')
+                versionInfo.model = 'pebble_black';
+            else
+                versionInfo.model = colour_name.replace('tintin-', 'pebble_')
+                    .replace('bianca-', 'pebble_steel_')
+                    .replace('snowy-', 'pebble_time_')
+                    .replace('bobby-', 'pebble_time_steel_')
+                    .replace(/spalding\-(\d+)mm\-([a-z]+)/, 'pebble_time_round_$2_$1')
+                    .replace(/spalding\-14mm\-rose_gold/, 'pebble_time_round_rose_gold_14');
         };
 
         var handle_failure = function() {
@@ -482,7 +502,7 @@ Pebble = function(proxy, token) {
         if (command === 1 && uuid === CloudPebble.ProjectInfo.app_uuid) {
             console.log("Starting PebbleKitJS application");
             if (!runtime)
-                runtime = new JsRuntime(appJsScript, pack, unpack, self.trigger.bind(self), send_message, open_config_page);
+                runtime = new JsRuntime(appJsScript, pack, unpack, self.trigger.bind(self), send_message, open_config_page, versionInfo);
             runtime.init();
         } else if (command === 2 && uuid === CloudPebble.ProjectInfo.app_uuid) {
             console.log("Stopping PebbleKitJS application");

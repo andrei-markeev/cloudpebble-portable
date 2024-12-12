@@ -89,7 +89,7 @@ function AppMessageService(pack, unpack) {
     }
 }
 
-function JsRuntime(appJsScript, pack, unpack, trigger, send_message, open_config_page) {
+function JsRuntime(appJsScript, pack, unpack, trigger, send_message, open_config_page, versionInfo) {
 
     var cleanState = {
         handlers: {},
@@ -122,7 +122,7 @@ function JsRuntime(appJsScript, pack, unpack, trigger, send_message, open_config
             scriptStart += "window;"
 
             appMessageService = new AppMessageService(pack, unpack);
-            pebbleRuntime = new PebbleRuntime(state, appMessageService, send_message, open_config_page);
+            pebbleRuntime = new PebbleRuntime(state, appMessageService, send_message, open_config_page, versionInfo);
             consoleRuntime = new ConsoleRuntime(trigger);
             localStorageRuntime = new LocalStorageRuntime();
         }
@@ -159,7 +159,7 @@ function JsRuntime(appJsScript, pack, unpack, trigger, send_message, open_config
 
 }
 
-function PebbleRuntime(state, appMessageService, send_message, open_config_page) {
+function PebbleRuntime(state, appMessageService, send_message, open_config_page, versionInfo) {
     function ensureReady() {
         if (!state.ready)
             throw new Error("Can't interact with the watch before the ready event is fired.");
@@ -218,7 +218,7 @@ function PebbleRuntime(state, appMessageService, send_message, open_config_page)
     
     }
     this.getActiveWatchInfo = function () {
-    
+        return versionInfo;
     }
     this.appGlanceReload = function () {
     

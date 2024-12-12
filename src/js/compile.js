@@ -668,6 +668,7 @@ CloudPebble.Compile = (function() {
                     }
                 });
                 pebble.request_version();
+                pebble.request_colour(); // needed for js
             }).catch(function(error) {
                 modal.find('.modal-body > p').html(error.message);
                 modal.find('.dismiss-btn').removeClass('hide');
