@@ -252,7 +252,7 @@ function ProjectFiles.copyOneFile(file_path, target_dir, file_stat)
     assert(Barf(target_file_path, contents))
     local access_sec, access_ns = file_stat:atim();
     local modified_sec, modified_ns = file_stat:mtim();
-    unix.utimensat(target_file_path, access_sec, access_ns, modified_sec, modified_ns)
+    assert(unix.utimensat(target_file_path, access_sec, access_ns, modified_sec, modified_ns))
 end
 
 ---@param app_info AppInfo

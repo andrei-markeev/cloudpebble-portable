@@ -406,7 +406,7 @@ Pebble = function(proxy, token) {
             resources: {
                 crc: result[22],
                 timestamp: result[23],
-                XXXXXXXXXXXXXXX: result[24]
+                language: result[24]
             }
         };
         var [_, major, minor, patch, suffix] = result[2].match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\-(.*))?$/);
@@ -502,8 +502,8 @@ Pebble = function(proxy, token) {
         if (command === 1 && uuid === CloudPebble.ProjectInfo.app_uuid) {
             console.log("Starting PebbleKitJS application");
             if (!runtime)
-                runtime = new JsRuntime(appJsScript, pack, unpack, self.trigger.bind(self), send_message, open_config_page, versionInfo);
-            runtime.init();
+                runtime = new JsRuntime(pack, unpack, self.trigger.bind(self), send_message, open_config_page, versionInfo);
+            runtime.init(appJsScript);
         } else if (command === 2 && uuid === CloudPebble.ProjectInfo.app_uuid) {
             console.log("Stopping PebbleKitJS application");
             runtime.clear();

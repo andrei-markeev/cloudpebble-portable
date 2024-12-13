@@ -89,21 +89,23 @@ function AppMessageService(pack, unpack) {
     }
 }
 
-function JsRuntime(appJsScript, pack, unpack, trigger, send_message, open_config_page, versionInfo) {
+function JsRuntime(pack, unpack, trigger, send_message, open_config_page, versionInfo) {
 
-    var cleanState = {
+    var state = {
         handlers: {},
         ready: false,
         transactionId: 0,
         callbacks: {},
     };
-    var state = Object.assign({}, cleanState);
     this.clear = function() {
-        state = Object.assign({}, cleanState);
+        state.handlers = {};
+        state.ready = false;
+        state.transactionId = 0;
+        state.callbacks = {};
     }
 
     var appMessageService, scriptStart, pebbleRuntime, consoleRuntime, localStorageRuntime;
-    this.init = function() {
+    this.init = function(appJsScript) {
         if (!appJsScript) {
             console.error('Application javascript was not downloaded!');
             return;
@@ -176,13 +178,16 @@ function PebbleRuntime(state, appMessageService, send_message, open_config_page,
         send_message('APPLICATION_MESSAGE', message);
 
     }
-    this.showSimpleNotificationOnPebble = function () {
+    this.showSimpleNotificationOnPebble = function (title, message) {
+        ensureReady();
         
     }
     this.getAccountToken = function () {
+        ensureReady();
         return "0123456789abcdef0123456789abcdef";
     }
     this.getWatchToken = function () {
+        ensureReady();
         return "0123456789abcdef0123456789abcdef";
     }
     this.addEventListener = function (eventName, handler) {
@@ -205,8 +210,66 @@ function PebbleRuntime(state, appMessageService, send_message, open_config_page,
     this.openURL = function (url) {
         return open_config_page("" + url);
     }
-    this.getTimelineToken = function () {
-        
+
+    function poll() {
+        var authWindow = null;
+        var spamInterval = setInterval(function () {
+            if (authWindow.location && authWindow.location.host) {
+                $(authWindow).off();
+                clearInterval(spamInterval);
+                console.log("there!");
+                authWindow.postMessage('hi', '*');
+                $(window).one('message', function (event) {
+                    var queryString = event.originalEvent.data;
+                    console.log('got:', queryString);
+                    var params = new URLSearchParams(queryString);
+                    if (params.has('success')) {
+                        mAuthenticated = 1;
+                        syncFromWeb();
+                    } else if (params.has('error'))
+                        setStatus(false, params.get('error'));
+                    authWindow.close();
+                });
+                
+            } else if (authWindow.closed) {
+                console.log('it closed.');
+                clearInterval(spamInterval);
+                $(window).off('message');
+            }
+        }, 1000);
+    }
+
+    var timelineToken;
+    this.getTimelineToken = function (onSuccess, onFailure) {
+        if (timelineToken) {
+            onSuccess.call({}, timelineToken)
+            return;
+        }
+        Ajax.Get('/api/get-timeline-token.lua?uuid=' + CloudPebble.ProjectInfo.app_uuid)
+            .then(function(data) {
+                timelineToken = data.token;
+                onSuccess?.call({}, data.token);
+            })
+            .catch(function(err) {
+                if (err.message === 'Rebble authentication required') {
+                    CloudPebble.Prompts.Confirm(
+                        gettext("Authentication required"),
+                        gettext("Your application is trying to request a timeline token. Please log in to Rebble in order to proceed."),
+                        function() {
+                            authWindow = window.open(
+                                "https://auth.rebble.io/oauth/authorise?response_type=code&client_id=b576399e9d1fdaa8e666a4dffbbdd1&scope=profile&redirect_uri=http://localhost:60000/",
+                                "rebble_auth",
+                                "width=375,height=567"
+                            );
+                            poll();
+                        },
+                        function() {
+                            onFailure?.call({}, "Failed to request a timeline token. User cancelled authentication to Rebble.")
+                        }
+                    );
+                } else
+                    onFailure?.call({}, err.message)
+            });
     }
     this.timelineSubscribe = function () {
     
@@ -256,7 +319,8 @@ function ConsoleRuntime(trigger) {
 function LocalStorageRuntime() {
     var storageKey = 'app-' + CloudPebble.ProjectInfo.app_uuid;
     this.getItem = function(key) {
-        return JSON.parse(localStorage.getItem(storageKey) || "{}")[key] || null;
+        const storage = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        return key in storage ? storage[key] : null;
     };
     this.setItem = function(key, value) {
         const storage = JSON.parse(localStorage.getItem(storageKey) || "{}");
