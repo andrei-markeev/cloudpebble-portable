@@ -3,6 +3,7 @@ local DownloadBundle = require('DownloadBundle')
 local NpmInstall = require('NpmInstall')
 local ConcatJavascript = require('ConcatJavascript')
 local IncrementalBuild = require('IncrementalBuild')
+local ZipUtil = require('ZipUtil')
 
 local can_skip = tonumber(GetParam('can_skip')) == 1
 
@@ -65,20 +66,21 @@ local build_db_filename = '.pebble/builds/db.json';
 ---@type any
 local builds = Slurp(build_db_filename)
 
-local lastId = 0
+local previousBuildId = 0
+local previousBuild
 if builds ~= nil then
     builds = assert(DecodeJson(builds))--[[@as any]]
-    lastId = builds[1].id
+    previousBuildId = builds[1].id
+    previousBuild = builds[1]
 else
     builds = {}
 end
 
 local build_info = { type = 'full' }
-local container_app_dir = path.join(rootfs_dir, 'pebble/app');
--- if last build was a success, let's try to build incrementally
-if lastId ~= 0 and builds[1].state == 3 and path.exists(container_app_dir) then
-    build_info = IncrementalBuild.detectBuildType(app_info, container_app_dir)
-    Log(kLogInfo, 'Build type determined as ' .. build_info.type)
+local assembled_dir = path.join(rootfs_dir, 'pebble/assembled');
+-- if previous build was a success, let's try to build incrementally
+if previousBuildId ~= 0 and previousBuild.state == 3 and path.exists(assembled_dir) then
+    build_info = IncrementalBuild.detectBuildType(app_info, assembled_dir)
     if can_skip and build_info.type == 'unchanged' then
         SetStatus(200)
         SetHeader('Content-Type', 'application/json; charset=utf-8')
@@ -93,7 +95,7 @@ end
 assert(unix.makedirs('.pebble/builds'))
 
 local build_uuid = UuidV4();
-local current_build = { id = lastId + 1, uuid = build_uuid, state = 1, started = math.floor(GetTime() * 1000) };
+local current_build = { id = previousBuildId + 1, uuid = build_uuid, state = 1, started = math.floor(GetTime() * 1000) };
 table.insert(builds, 1, current_build)
 if #builds > 10 then
     table.remove(builds, #builds)
@@ -133,44 +135,80 @@ if assert_fail_build(unix.fork()) ~= 0 then
     return
 end
 
--- in the child process
+----------------------------- in the child process --------------------------------------
 
-local assembled_dir = path.join(rootfs_dir, 'pebble/assembled');
+local function append_to_log(text)
+    Log(kLogInfo, '[BUILD LOG] ' .. text)
+    local log_fd, err = unix.open(build_log, unix.O_WRONLY | unix.O_CREAT | unix.O_APPEND, 0644)
+    if err then
+        Log(kLogInfo, 'Cannot open build log! ' .. err:name() .. ' ' .. err:doc())
+        return
+    end
+    local _, err = unix.write(log_fd, text .. '\n')
+    if err then
+        Log(kLogInfo, 'Failed writing to the build log! ' .. err:name() .. ' ' .. err:doc())
+        return
+    end
+    local _, err = unix.close(log_fd)
+    if err then
+        Log(kLogInfo, 'Closing the build log file failed! ' .. err:name() .. ' ' .. err:doc())
+        return
+    end
+end
 
--- TODO: handle build_type == 'only_js'
+append_to_log('Build type determined as ' .. build_info.type)
+
 if not build_info or build_info.type == 'full' then
-    if path.exists(container_app_dir) then
-        assert_fail_build(unix.rmrf(container_app_dir));
+    if path.exists(assembled_dir) then
         assert_fail_build(unix.rmrf(assembled_dir));
     end
-    assert_fail_build(unix.mkdir(container_app_dir));
     assert_fail_build(unix.mkdir(assembled_dir));
-    assert_fail_build(unix.makedirs(path.join(assembled_dir, 'resources/fonts')))
-    assert_fail_build(unix.makedirs(path.join(assembled_dir, 'resources/images')))
-    assert_fail_build(unix.makedirs(path.join(assembled_dir, 'resources/data')))
+    assert_fail_build(unix.mkdir(path.join(assembled_dir, 'resources')))
+    assert_fail_build(unix.mkdir(path.join(assembled_dir, 'resources/fonts')))
+    assert_fail_build(unix.mkdir(path.join(assembled_dir, 'resources/images')))
+    assert_fail_build(unix.mkdir(path.join(assembled_dir, 'resources/data')))
 
-    ProjectFiles.copyTo(app_info, container_app_dir)
     ProjectFiles.copyTo(app_info, assembled_dir)
+    local wscript = LoadAsset('.templates/wscript')
+    assert_fail_build(Barf(path.join(assembled_dir, 'wscript'), wscript))
 else
     for _, file_path in ipairs(build_info.remove) do
-        assert_fail_build(unix.unlink(path.join(container_app_dir, file_path)))
         assert_fail_build(unix.unlink(path.join(assembled_dir, file_path)))
     end
     for _, file_path in ipairs(build_info.copy) do
-        ProjectFiles.copyOneFile(file_path, container_app_dir)
         ProjectFiles.copyOneFile(file_path, assembled_dir)
     end
 end
 
--- TODO: concat JS also for PebbleJs projects
-if app_info.enableMultiJS and app_info.projectType == 'native' then
-    NpmInstall.installTo(app_info, path.join(container_app_dir, 'src/pkjs'), assert_fail_build)
-    app_info.enableMultiJS = false
-    app_info.dependencies = {}
-    ProjectFiles.saveAppInfoTo(app_info, container_app_dir)
-    ConcatJavascript.concat(app_info, container_app_dir, rootfs_dir, assert_fail_build)
-    -- TODO: always use standard wscript same as original CloudPebble is doing
-    -- ctx.pbl_bundle(binaries=binaries, js='src/js/pebble-js-app.js')
+if app_info.projectType == 'native' then
+    if app_info.enableMultiJS then
+        NpmInstall.installTo(app_info, path.join(assembled_dir, 'src/pkjs'), assert_fail_build)
+        app_info.enableMultiJS = false
+        app_info.dependencies = {}
+        ProjectFiles.saveAppInfoTo(app_info, assembled_dir)
+        ConcatJavascript.concatWithLoader(app_info, assembled_dir, rootfs_dir, assert_fail_build)
+    else
+        ConcatJavascript.concatRaw(app_info, assembled_dir, rootfs_dir, assert_fail_build)
+    end
+    if build_info.type == 'only_js' then
+        local pjs = assert_fail_build(Slurp(path.join(assembled_dir, 'src/js/pebble-js-app.js')))
+        assert_fail_build(unix.rename(path.join(assembled_dir, 'src/js/pebble-js-app.js'), '.pebble/builds/' .. build_uuid .. '.js'))
+
+        local build_dir = path.join(assembled_dir, 'build')
+        local pbw_file_path = path.join(build_dir, 'assembled.pbw');
+        Log(kLogInfo, 'update zip started')
+        ZipUtil.update(pbw_file_path, 'pebble-js-app.js', '.pebble/builds/' .. build_uuid .. '.pbw', pjs)
+        Log(kLogInfo, 'update zip ended')
+
+        current_build.state = 3
+        current_build.finished = math.floor(GetTime() * 1000)
+        current_build.sizes = previousBuild.sizes
+        assert(Barf(build_db_filename, EncodeJson(builds)))
+        return
+    end
+elseif app_info.projectType == 'pebblejs' then
+    -- TODO: copy pebblejs files
+    -- ConcatJavascript.concatWithLoader(app_info, assembled_dir, rootfs_dir, assert_fail_build)
 end
 
 if host_os == 'WINDOWS' then
@@ -217,8 +255,7 @@ if host_os == 'WINDOWS' then
     local build_dir = path.join(rootfs_dir, 'pebble/assembled/build')
     local pbw = assert_fail_build(Slurp(path.join(build_dir, 'assembled.pbw')))
     assert_fail_build(Barf('.pebble/builds/' .. build_uuid .. '.pbw', pbw))
-    local pjs = assert_fail_build(Slurp(path.join(build_dir, 'pebble-js-app.js')))
-    assert_fail_build(Barf('.pebble/builds/' .. build_uuid .. '.js', pjs))
+    assert_fail_build(unix.rename(path.join(assembled_dir, 'src/js/pebble-js-app.js'), '.pebble/builds/' .. build_uuid .. '.js'))
     local sizeInfo = {}
     for _, p in ipairs(app_info.targetPlatforms) do
         local app_stat = assert_fail_build(unix.stat(path.join(build_dir, p, 'pebble-app.bin')))

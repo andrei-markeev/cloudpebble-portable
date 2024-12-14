@@ -2,10 +2,10 @@ local ProjectFiles = require('ProjectFiles')
 local IncrementalBuild = {}
 
 ---@param app_info AppInfo
----@param container_app_dir string
+---@param assembled_dir string
 ---@return { type: 'unchanged' | 'only_js' | 'incremental' | 'full', copy?: string[], remove?: string[] }
-function IncrementalBuild.detectBuildType(app_info, container_app_dir)
-    local old_files = ProjectFiles.findFilesAt(app_info, 'all', container_app_dir)
+function IncrementalBuild.detectBuildType(app_info, assembled_dir)
+    local old_files = ProjectFiles.findFilesAt(app_info, 'all', assembled_dir)
     local new_files = ProjectFiles.findFiles(app_info, 'all')
 
     local file_dict = {}
@@ -16,7 +16,7 @@ function IncrementalBuild.detectBuildType(app_info, container_app_dir)
     for _, file_info in ipairs(old_files) do
         if file_info.target ~= 'unknown' then
             local file_path = assert(path.join(file_info.dir, file_info.name))
-            local base_file_path = file_path:sub(#container_app_dir + 2)
+            local base_file_path = file_path:sub(#assembled_dir + 2)
             local stat, err = unix.stat(file_path)
             if err ~= nil then
                 Log(kLogWarn, 'Cannot buld incrementally because stat returned error ' .. err:name() .. ' ' .. err:doc())

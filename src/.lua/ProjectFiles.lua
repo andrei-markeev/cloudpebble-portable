@@ -210,7 +210,8 @@ function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
     ---@param dir string
     ---@param target ProjectFileTarget
     local function findRecursive(dir, target)
-        for name, kind in assert(unix.opendir(dir or '.')) do
+        local dirInfo = assert(unix.opendir(dir or '.'))
+        for name, kind in dirInfo do
             if string.sub(name, 1, 1) ~= '.' then
                 if kind == unix.DT_DIR then
                     local child_dir = path.join(dir, name)
@@ -218,9 +219,7 @@ function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
                     findRecursive(child_dir, child_target)
                 elseif kind == unix.DT_REG then
                     local file_target = target
-                    if dir == base_dir and name == 'wscript' then
-                        file_target = 'wscript'
-                    elseif dir == base_dir and (name == 'appinfo.json' or name == 'package.json') then
+                    if dir == base_dir and (name == 'appinfo.json' or name == 'package.json') then
                         file_target = 'manifest'
                     end
                     if file_target == find_target or find_target == 'all' then
@@ -229,6 +228,7 @@ function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
                 end
             end
         end
+        assert(dirInfo:close())
     end
 
     findRecursive(base_dir, 'unknown')
@@ -247,7 +247,9 @@ function ProjectFiles.copyOneFile(file_path, target_dir, file_stat)
         file_stat = assert(unix.stat(file_path))
     end
     Log(kLogInfo, 'Copying from ' .. file_path .. ' to ' .. target_file_path)
-    assert(unix.makedirs(path.join(target_dir, dir)))
+    if not path.exists(path.join(target_dir, dir)) then
+        assert(unix.makedirs(path.join(target_dir, dir)))
+    end
     local contents = assert(Slurp(file_path))
     assert(Barf(target_file_path, contents))
     local access_sec, access_ns = file_stat:atim();

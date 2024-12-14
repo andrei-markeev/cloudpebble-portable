@@ -15,9 +15,9 @@ if err ~= nil then
     return;
 end
 local body = GetBody();
-unix.write(fd, body);
+assert(unix.write(fd, body));
 local stat = assert(unix.fstat(fd));
-unix.close(fd);
+assert(unix.close(fd));
 
 SetStatus(200)
 SetHeader('Content-Type', 'application/json; charset=utf-8')

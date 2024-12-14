@@ -16,18 +16,22 @@ end
 ---@param app_info AppInfo
 ---@param app_dir string
 ---@param rootfs_dir string
----@param assert_and_fail function
-function ConcatJavascript.concat(app_info, app_dir, rootfs_dir, assert_and_fail)
+---@param assert_or_fail function
+function ConcatJavascript.concatWithLoader(app_info, app_dir, rootfs_dir, assert_or_fail)
 
     local js_dir = path.join(app_dir, 'src/js') .. '/';
     local pkjs_dir = path.join(app_dir, 'src/pkjs') .. '/';
-    assert_and_fail(unix.makedirs(js_dir))
+    assert_or_fail(unix.makedirs(js_dir))
 
-    local fd = assert_and_fail(unix.open(path.join(app_dir, 'pebble-js-app.js'), unix.O_WRONLY | unix.O_CREAT | unix.O_TRUNC))
+    if path.exists(path.join(js_dir, 'pebble-js-app.js')) then
+        assert_or_fail(unix.unlink(path.join(js_dir, 'pebble-js-app.js')))
+    end
 
-    local loaderjs = assert_and_fail(Slurp(path.join(rootfs_dir, 'pebble/pebblejs/src/js/loader.js')))
+    local fd = assert_or_fail(unix.open(path.join(app_dir, 'assembled.js'), unix.O_WRONLY | unix.O_CREAT | unix.O_TRUNC, 0644))
+
+    local loaderjs = assert_or_fail(Slurp(path.join(rootfs_dir, 'pebble/pebblejs/src/js/loader.js')))
     local line_no = get_line_count(loaderjs) + 1
-    unix.write(fd, loaderjs .. '\n')
+    assert_or_fail(unix.write(fd, loaderjs .. '\n'))
 
     local jsFiles = ProjectFiles.findFilesAt(app_info, 'pkjs', app_dir)
     for _, file_info in ipairs(jsFiles) do
@@ -49,13 +53,47 @@ function ConcatJavascript.concat(app_info, app_dir, rootfs_dir, assert_and_fail)
         unix.write(fd, '__loader.define("' .. rel_file_path .. '", ' .. line_no .. ', function(exports, module, require) {\n')
         unix.write(fd, contents .. '\n});\n')
         line_no = line_no + get_line_count(contents) + 2
-        assert_and_fail(unix.unlink(file_path_in_container))
+        assert_or_fail(unix.unlink(file_path_in_container))
     end
-    unix.write(fd, '__loader.require("index");')
+    assert_or_fail(unix.write(fd, '__loader.require("index");'))
+
+    assert_or_fail(unix.close(fd))
+
+    assert_or_fail(unix.rename(path.join(app_dir, 'assembled.js'), path.join(js_dir, 'pebble-js-app.js')))
+end
+
+---@param app_info AppInfo
+---@param app_dir string
+---@param rootfs_dir string
+---@param assert_and_fail function
+function ConcatJavascript.concatRaw(app_info, app_dir, rootfs_dir, assert_and_fail)
+
+    local js_dir = path.join(app_dir, 'src/js') .. '/';
+    assert_and_fail(unix.makedirs(js_dir))
+
+    -- artefact from the previous build
+    if path.exists(path.join(js_dir, 'pebble-js-app.js')) then
+        assert_and_fail(unix.unlink(path.join(js_dir, 'pebble-js-app.js')))
+    end
+
+    local fd = assert_and_fail(unix.open(path.join(app_dir, 'assembled.js'), unix.O_WRONLY | unix.O_CREAT | unix.O_TRUNC, 0644))
+
+    local loaderjs = assert_and_fail(Slurp(path.join(rootfs_dir, 'pebble/pebblejs/src/js/loader.js')))
+    unix.write(fd, loaderjs .. '\n')
+
+    local jsFiles = ProjectFiles.findFilesAt(app_info, 'pkjs', app_dir)
+    for _, file_info in ipairs(jsFiles) do
+        if file_info.name:sub(-5) ~= '.json' then
+            local file_path_in_container = path.join(app_dir, file_info.dir, file_info.name);
+            Log(kLogInfo, 'Concatenating ' .. file_path_in_container .. '...')
+            local contents = assert(Slurp(file_path_in_container))
+            unix.write(fd, contents .. "\n")
+        end
+    end
 
     assert_and_fail(unix.close(fd))
 
-    assert_and_fail(unix.rename(path.join(app_dir, 'pebble-js-app.js'), path.join(js_dir, 'pebble-js-app.js')))
+    assert_and_fail(unix.rename(path.join(app_dir, 'assembled.js'), path.join(js_dir, 'pebble-js-app.js')))
 end
 
 return ConcatJavascript;

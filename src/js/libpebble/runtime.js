@@ -303,8 +303,11 @@ function ConsoleRuntime(trigger) {
         return function() {
             var st = captureStackTrace();
             var s = '';
-            for (var i = 0; i < arguments.length; i++)
+            for (var i = 0; i < arguments.length; i++) {
+                if (i > 0)
+                    s += ' ';
                 s += arguments[i];
+            }
             trigger("app_log", level, 'pebble-js-app.js', st[2].getLineNumber() - 2, s);
         }
     }

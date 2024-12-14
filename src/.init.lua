@@ -39,16 +39,14 @@ if path.exists(build_db_filename) then
         builds = assert(DecodeJson(builds))--[[@as any]]
         if builds[1].state == 1 then
             table.remove(builds, 1)
+            assert(Barf(build_db_filename, EncodeJson(builds)));
         end
-        assert(Barf(build_db_filename, EncodeJson(builds)));
 
         local DownloadBundle = require('DownloadBundle')
         local container_dir = DownloadBundle.getContainerDir()
         local rootfs_dir = path.join(container_dir, 'rootfs')
-        local container_app_dir = path.join(rootfs_dir, 'pebble/app');
         local assembled_dir = path.join(rootfs_dir, 'pebble/assembled');
-        if path.exists(container_app_dir) then
-            unix.rmrf(container_app_dir);
+        if path.exists(assembled_dir) then
             unix.rmrf(assembled_dir);
         end
     end

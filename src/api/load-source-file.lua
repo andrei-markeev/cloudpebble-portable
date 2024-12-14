@@ -29,7 +29,7 @@ repeat
     file_contents = file_contents .. next_chunk
 until next_chunk == ''
 local stat = assert(unix.fstat(fd));
-unix.close(fd);
+assert(unix.close(fd));
 
 SetStatus(200)
 SetHeader('Content-Type', 'application/json; charset=utf-8')

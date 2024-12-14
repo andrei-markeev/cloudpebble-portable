@@ -5068,10 +5068,10 @@ function unix.close(fd) end
 --- if `bufsiz` is zero, in which case an empty returned string means
 --- the file descriptor works.
 ---@param fd integer
----@param bufsiz string?
+---@param bufsiz integer?
 ---@param offset integer?
 ---@return string data
----@overload fun(fd: integer, bufsiz?: string, offset?: integer): nil, error: unix.Errno
+---@overload fun(fd: integer, bufsiz?: integer, offset?: integer): nil, error: unix.Errno
 function unix.read(fd, bufsiz, offset) end
 
 --- Writes to file descriptor.
