@@ -224,6 +224,8 @@ Pebble = function(proxy, token) {
                     handle_app_start(message);
                 } else if (command == ENDPOINTS.APPLICATION_MESSAGE) {
                     handle_app_message(message);
+                } else if (command == ENDPOINTS.BLOBDB) {
+                    handle_blobdb_response(message);
                 }
             }
             catch (e) {
@@ -530,6 +532,25 @@ Pebble = function(proxy, token) {
         }
     }
 
+    var handle_blobdb_response = function(data) {
+        var [token, responseCode] = unpack('<HB', data);
+        var status = "Unknown (" + responseCode + ")";
+        switch (responseCode) {
+            case 0x01: status = "Success"; break;
+            case 0x02: status = "GeneralFailure"; break;
+            case 0x03: status = "InvalidOperation"; break;
+            case 0x04: status = "InvalidDatabaseID"; break;
+            case 0x05: status = "InvalidData"; break;
+            case 0x06: status = "KeyDoesNotExist"; break;
+            case 0x07: status = "DatabaseFull"; break;
+            case 0x08: status = "DataStale"; break;
+            case 0x09: status = "NotSupported"; break;
+            case 0xA:  status = "Locked"; break;
+            case 0xB:  status = "TryLater"; break;
+        }
+        console.log("BlobDB operation " + token.toString(16) + " ended with status: " + status)
+    }
+
     this.request_screenshot = function() {
         console.log("Requesting screenshot.");
         if(mIncomingImage !== null) {
@@ -829,27 +850,28 @@ Pebble = function(proxy, token) {
     };
 
     var ENDPOINTS = {
-        "TIME": 11,
-        "VERSION": 16,
-        "PHONE_VERSION": 17,
-        "SYSTEM_MESSAGE": 18,
-        "MUSIC_CONTROL": 32,
-        "PHONE_CONTROL": 33,
-        "APPLICATION_MESSAGE": 48,
-        "LAUNCHER": 49,
-        "APPSTART": 52,
-        "LOGS": 2000,
-        "PING": 2001,
-        "LOG_DUMP": 2002,
-        "RESET": 2003,
-        "APP": 2004,
-        "APP_LOGS": 2006,
-        "NOTIFICATION": 3000,
-        "RESOURCE": 4000,
-        "FACTORY_SETTINGS": 5001,
-        "APP_MANAGER": 6000,
-        "SCREENSHOT": 8000,
-        "PUTBYTES": 48879
+        "TIME": 0x000b,
+        "VERSION": 0x0010,
+        "PHONE_VERSION": 0x0011,
+        "SYSTEM_MESSAGE": 0x0012,
+        "MUSIC_CONTROL": 0x0020,
+        "PHONE_CONTROL": 0x0021,
+        "APPLICATION_MESSAGE": 0x0030,
+        "LAUNCHER": 0x0031,
+        "APPSTART": 0x0034,
+        "LOGS": 0x07d0,
+        "PING": 0x07d1,
+        "LOG_DUMP": 0x07d2,
+        "RESET": 0x07d3,
+        "APP": 0x07d4,
+        "APP_LOGS": 0x07d6,
+        "NOTIFICATION": 0x0bb8,
+        "RESOURCE": 0x0fa0,
+        "FACTORY_SETTINGS": 0x1389,
+        "APP_MANAGER": 0x1770,
+        "SCREENSHOT": 0x1f40,
+        "BLOBDB": 0xb1db,
+        "PUTBYTES": 0xbeef
     };
 
     var QEmu = {

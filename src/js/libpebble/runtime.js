@@ -1,3 +1,84 @@
+function BlobDbService(pack, unpack) {
+    var db = {
+        Test: 0,
+        Pin: 1,
+        App: 2,
+        Reminder: 3,
+        Notification: 4,
+        AppGlance: 11
+    };
+
+    var legacy_sources = {
+        Email: 0,
+        SMS: 1,
+        Facebook: 2,
+        Twitter: 3
+    }
+    var source_map = {
+        [legacy_sources.Twitter]: 6,
+        [legacy_sources.Email]: 19,
+        [legacy_sources.Facebook]: 11,
+        [legacy_sources.SMS]: 45,
+    }
+    var notification_types = {
+        Notification: 1,
+        Pin: 2,
+        Reminder: 3
+    }
+    var action_types = {
+        AncsDismiss: 0x01,
+        Generic: 0x02,
+        Response: 0x03,
+        Dismiss: 0x04,
+        HTTP: 0x05,
+        Snooze: 0x06,
+        OpenWatchapp: 0x07,
+        Empty: 0x08,
+        Remove: 0x09,
+        OpenPin: 0x0a
+    }
+
+    this.prepareNotification = function(subject, message, sender = "", source = undefined) {
+        var encoder = new TextEncoder('utf-8');
+        var attributes_count = 3;
+        // attribute format: id(uint8) length(uint16) content(uint8array)
+        var attributes = 
+            pack('<BHS', [0x01, encoder.encode(sender).length, sender])
+            .concat(pack('<BHI', [0x04, 4, source !== undefined ? source_map[source] : 1]))
+            .concat(pack('<BHS', [0x02, encoder.encode(subject).length, subject]));
+        if (message) {
+            attributes = attributes.concat(pack('<BHS', [0x03, encoder.encode(message).length, message]));
+            attributes_count++;
+        }
+
+        var itemid = _.UUID.v4()
+
+        var actions_count = 1;
+        var dismiss_attribute = pack('<BHS', [0x01, "Dismiss".length, "Dismiss"]);
+        // action format: id(uint8) type(uint8) attr_count(uint8) attrs
+        var actions = pack('<BBB', [0, action_types.Dismiss, 1]).concat(dismiss_attribute);
+
+        var itemid_packed = pack('<U', [itemid]);
+        var notification = itemid_packed.concat(pack('<UIHBHBHBB', [
+            '00000000-0000-0000-0000-000000000000',
+            Math.floor(Date.now() / 1000), // timestamp
+            0, // duration
+            notification_types.Notification,
+            0, // flags
+            1, // layout
+            attributes.length + actions.length, // data length
+            attributes_count,
+            actions_count
+        ])).concat(attributes).concat(actions);
+
+        var randomToken = Math.floor(Math.random()* 0xffff);
+
+        return pack('<BHB', [0x01, randomToken, db.Notification])
+            .concat(pack('<B', [itemid_packed.length])).concat(itemid_packed)
+            .concat(pack('<H', [notification.length])).concat(notification);
+    }
+}
+
 function AppMessageService(pack, unpack) {
     // Message format:
     //
@@ -104,7 +185,9 @@ function JsRuntime(pack, unpack, trigger, send_message, open_config_page, versio
         state.callbacks = {};
     }
 
-    var appMessageService, scriptStart, pebbleRuntime, consoleRuntime, localStorageRuntime;
+    var scriptStart;
+    var appMessageService, blobDbService;
+    var pebbleRuntime, consoleRuntime, localStorageRuntime;
     this.init = function(appJsScript) {
         if (!appJsScript) {
             console.error('Application javascript was not downloaded!');
@@ -124,7 +207,8 @@ function JsRuntime(pack, unpack, trigger, send_message, open_config_page, versio
             scriptStart += "window;"
 
             appMessageService = new AppMessageService(pack, unpack);
-            pebbleRuntime = new PebbleRuntime(state, appMessageService, send_message, open_config_page, versionInfo);
+            blobDbService = new BlobDbService(pack, unpack);
+            pebbleRuntime = new PebbleRuntime(state, appMessageService, blobDbService, send_message, open_config_page, versionInfo);
             consoleRuntime = new ConsoleRuntime(trigger);
             localStorageRuntime = new LocalStorageRuntime();
         }
@@ -161,7 +245,7 @@ function JsRuntime(pack, unpack, trigger, send_message, open_config_page, versio
 
 }
 
-function PebbleRuntime(state, appMessageService, send_message, open_config_page, versionInfo) {
+function PebbleRuntime(state, appMessageService, blobDbService, send_message, open_config_page, versionInfo) {
     function ensureReady() {
         if (!state.ready)
             throw new Error("Can't interact with the watch before the ready event is fired.");
@@ -180,7 +264,8 @@ function PebbleRuntime(state, appMessageService, send_message, open_config_page,
     }
     this.showSimpleNotificationOnPebble = function (title, message) {
         ensureReady();
-        
+        var packet = blobDbService.prepareNotification(title, message);
+        send_message('BLOBDB', packet);
     }
     this.getAccountToken = function () {
         ensureReady();
@@ -272,19 +357,23 @@ function PebbleRuntime(state, appMessageService, send_message, open_config_page,
             });
     }
     this.timelineSubscribe = function () {
-    
+        ensureReady();
+        throw new Error("Rebble doesn't support shared pins.");
     }
     this.timelineUnsubscribe = function () {
-    
+        ensureReady();
+        throw new Error("Rebble doesn't support shared pins.");
     }
     this.timelineSubscriptions = function () {
-    
+        ensureReady();
+        throw new Error("Rebble doesn't support shared pins.");
     }
     this.getActiveWatchInfo = function () {
         return versionInfo;
     }
     this.appGlanceReload = function () {
-    
+        ensureReady();
+        // TODO
     }
 }
 
