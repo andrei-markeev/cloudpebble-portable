@@ -1,5 +1,5 @@
 CloudPebble.Editor = (function() {
-    var project_source_files = [];
+    var project_source_files = {};
     var open_codemirrors = [];
     var unsaved_files = 0;
     var is_fullscreen = false;
@@ -812,11 +812,14 @@ CloudPebble.Editor = (function() {
         };
 
         CloudPebble.FuzzyPrompt.AddDataSource('files', function() {
-            var names = _.countBy(project_source_files, 'name');
-            return _.map(project_source_files, function(obj) {
+            var namesCount = {}
+            for (var projFile of Object.values(project_source_files))
+                namesCount[projFile.name] = (namesCount[projFile.name] || 0) + 1;
+
+            return Object.values(project_source_files).map(function(obj) {
                 return {
                     file: obj,
-                    name: (names[obj.name] > 1 ? interpolate("%s (%s)", [obj.name, CloudPebble.TargetNames[obj.target]]) : obj.name)
+                    name: (namesCount[obj.name] > 1 ? interpolate("%s (%s)", [obj.name, CloudPebble.TargetNames[obj.target]]) : obj.name)
                 }
             });
             // return project_source_files;

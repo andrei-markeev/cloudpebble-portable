@@ -212,7 +212,7 @@ CloudPebble.FuzzyPrompt = (function() {
                 });
             }
         });
-        fuse.set(item_list);
+        fuse.setCollection(item_list);
 
         // Select the current item by default, or the first item.
         highlight_item(_.findWhere(item_list, {name: default_item}) || item_list[0]);
