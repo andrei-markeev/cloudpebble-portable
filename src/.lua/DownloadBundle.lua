@@ -103,6 +103,31 @@ local function startWindows(container_dir)
 
     assert(unix.unlink(path.join(container_dir, 'pebblesdk-container.tar.gz')))
 
+    -- run mount /dev/urandom
+    if assert(unix.fork()) == 0 then
+        Barf(status_filename, 'Mounting /dev/urandom...');
+
+        local _, err = unix.execve(wsl_path, {
+            wsl_path,
+            '--user', 'root',
+            '--',
+            'sh', '-c', 'mount --bind /dev/urandom /mnt/c/' .. string.sub(path.join(container_dir, 'rootfs'), 4) .. '/dev/urandom'
+        })
+        
+        if err ~= nil then
+            local status_text = 'Error: failed to execute wsl: ' .. err:name() .. ' ' .. err:doc()
+            Log(kLogError, status_text)
+            Barf(status_filename, status_text);
+            return
+        end
+
+        unix.exit(127)
+    end
+
+    Log(kLogInfo, 'waiting for mount')
+    unix.wait();
+    Log(kLogInfo, 'done waiting: wsl (mount) finished executing')
+
     -- run init.sh script
     if assert(unix.fork()) == 0 then
         Barf(status_filename, 'Initializing the bundle...');
@@ -130,7 +155,7 @@ local function startWindows(container_dir)
         Barf(status_filename, 'Error: bundle init script has failed!');
         return
     end
-    Log(kLogInfo, 'done waiting: wsl finished executing')
+    Log(kLogInfo, 'done waiting: wsl (init.sh) finished executing')
 
     Barf(status_filename, 'ready');
 end

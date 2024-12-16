@@ -18,10 +18,13 @@ RUN mkdir /qemu && cd /qemu && \
 RUN git clone https://github.com/pebble/pypkjs.git --depth 1 --branch master --recursive
 RUN rm -rf /pypkjs/.git
 
-RUN pip install -r /pypkjs/requirements.txt
+RUN sed -i "/netaddr/d" /pypkjs/requirements.txt && \
+    pip install -r /pypkjs/requirements.txt
 
-RUN rm -rf /pypkjs/pypkjs/PyV8/darwin64 && \
-    rm -rf /pypkjs/pypkjs/PyV8/linux32
+RUN rm -rf /pypkjs/pypkjs/PyV8 && \
+    rm -rf /pypkjs/pypkjs/javascript && \
+    sed -i "/import pypkjs.javascript/d" /pypkjs/pypkjs/runner/__init__.py && \
+    sed -i "/self.pebble.register_endpoint/d" /pypkjs/pypkjs/runner/pebble_manager.py
 
 RUN curl -o /tmp/arm-cs-tools.tar https://cloudpebble-vagrant.s3.amazonaws.com/arm-cs-tools-stripped.tar && \
 tar -xf /tmp/arm-cs-tools.tar -C / && rm /tmp/arm-cs-tools.tar
@@ -37,7 +40,10 @@ RUN pip install -r /sdk3/requirements.txt
 RUN mkdir /pebblejs && curl -Ls https://github.com/pebble/pebblejs/archive/refs/heads/master.tar.gz | \
   tar xz --strip 1 -C /pebblejs
 
-RUN find / -name *.pyc | xargs rm
+RUN rm -rf /usr/local/lib/python2.7/site-packages/pip* && \
+    rm -rf /usr/local/lib/python2.7/site-packages/setuptools* && \
+    rm -rf /usr/local/lib/python2.7/site-packages/easy_install.py && \
+    find / -name *.pyc | xargs rm
 
 ENTRYPOINT [ "sh" ]
 
@@ -47,17 +53,25 @@ RUN apt-get update && apt-get install -y libglib2.0 libpixman-1-0 libfdt-dev lib
   && apt-get remove -y python3.7 mono-runtime libicu63 && apt-get autoremove -y \
   && apt-get autoclean -y && apt-get clean -y
 
-RUN mkdir -p /pebble/qemu/bin
-RUN mkdir -p /pebble/qemu/pc-bios/keymaps
+RUN rm -rf /usr/share/doc/* && \
+    rm -rf /usr/share/gtk-doc && \
+    rm -rf /var/lib/apt/lists
+
+RUN mkdir -p /pebble/qemu/bin && \
+    mkdir -p /pebble/qemu/pc-bios/keymaps
 COPY --from=build /qemu/arm-softmmu/qemu-system-arm /pebble/qemu/bin/
 COPY --from=build /qemu/pc-bios/keymaps/en-us /pebble/qemu/pc-bios/keymaps/
+
 RUN rm -rf /usr/local/lib/python2.7/site-packages
 COPY --from=build /usr/local/lib/python2.7/site-packages /usr/local/lib/python2.7/site-packages
 COPY --from=build /pypkjs /pebble/pypkjs
 RUN mkdir /pebble/pypkjs/data
+
 COPY --from=build /arm-cs-tools /pebble/arm-cs-tools
 COPY --from=build /sdk3 /pebble/sdk3
 COPY --from=build /pebblejs /pebble/pebblejs
 COPY ./*.sh /pebble/
+
+RUN touch /dev/urandom
 
 ENTRYPOINT [ "sh" ]
