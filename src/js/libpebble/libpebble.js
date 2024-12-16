@@ -517,11 +517,11 @@ Pebble = function(proxy, token) {
         if (command === 0xFF) {
             console.log('App_message transaction ' + transactionId + ' succeeded!');
             if (runtime)
-                runtime.raiseCallback(transactionId, true);
+                runtime.raiseCallback('APPLICATION_MESSAGE', transactionId, true);
         } else if (command === 0x7f) {
             console.warn('App_message transaction ' + transactionId + ' failed!');
             if (runtime)
-                runtime.raiseCallback(transactionId, false);
+                runtime.raiseCallback('APPLICATION_MESSAGE', transactionId, false);
         } else if (command === 0x01) {
             var [uuid] = unpack('U', data.subarray(2));
             if (uuid === CloudPebble.ProjectInfo.app_uuid) {
@@ -548,7 +548,9 @@ Pebble = function(proxy, token) {
             case 0xA:  status = "Locked"; break;
             case 0xB:  status = "TryLater"; break;
         }
-        console.log("BlobDB operation " + token.toString(16) + " ended with status: " + status)
+        console.log("BlobDB operation " + token.toString(16) + " ended with status: " + status);
+        if (runtime)
+            runtime.raiseCallback('BLOBDB', token, status === "Success");
     }
 
     this.request_screenshot = function() {
@@ -911,9 +913,13 @@ Pebble = function(proxy, token) {
         var pointer = 0;
         var bytes = [];
         var encoder = new TextEncoder('utf-8');
+        var encoded;
 
         var pack_number = {
             '>': {
+                'b': function(n) {
+                    bytes.push(n);
+                },
                 'h': function(n) {
                     bytes.push((n >> 8) & 0xFF);
                     bytes.push(n & 0xFF);
@@ -926,6 +932,9 @@ Pebble = function(proxy, token) {
                 }
             },
             '<': {
+                'b': function(n) {
+                    bytes.push(n);
+                },
                 'h': function(n) {
                     bytes.push(n & 0xFF);
                     bytes.push((n >> 8) & 0xFF);
@@ -951,7 +960,8 @@ Pebble = function(proxy, token) {
                 break;
             case "b":
             case "B":
-                bytes.push(data[pointer++]);
+                pack_number[endianness]['b'](data[pointer]);
+                ++pointer;
                 break;
             case "h":
             case "H":
@@ -964,6 +974,22 @@ Pebble = function(proxy, token) {
             case "I":
                 pack_number[endianness]['i'](data[pointer]);
                 ++pointer;
+                break;
+            case "{":
+                // for example {HS} = length of the string as UInt16 and then the string itself
+                encoded = Array.prototype.slice.call(encoder.encode(data[pointer]));
+                i++;
+                chr = format.charAt(i);
+                pack_number[endianness][chr.toLowerCase()](encoded.length);
+                ++pointer;
+                i++;
+                if (format.charAt(i) != 'S')
+                    throw new Error("Expected 'S' at position " + i);
+                bytes = bytes.concat(encoded);
+                ++pointer;
+                i++;
+                if (format.charAt(i) != '}')
+                    throw new Error("Expected '}' at position " + i);
                 break;
             case "S":
                 bytes = bytes.concat(Array.prototype.slice.call(encoder.encode(data[pointer])));

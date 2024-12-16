@@ -1,3 +1,108 @@
+var SYSTEM_ICONS_MAP = {
+    "NOTIFICATION_GENERIC": 1,
+    "TIMELINE_MISSED_CALL": 2,
+    "NOTIFICATION_REMINDER": 3,
+    "NOTIFICATION_FLAG": 4,
+    "NOTIFICATION_WHATSAPP": 5,
+    "NOTIFICATION_TWITTER": 6,
+    "NOTIFICATION_TELEGRAM": 7,
+    "NOTIFICATION_GOOGLE_HANGOUTS": 8,
+    "NOTIFICATION_GMAIL": 9,
+    "NOTIFICATION_FACEBOOK_MESSENGER": 10,
+    "NOTIFICATION_FACEBOOK": 11,
+    "AUDIO_CASSETTE": 12,
+    "ALARM_CLOCK": 13,
+    "TIMELINE_WEATHER": 14,
+    "TIMELINE_SUN": 16,
+    "TIMELINE_SPORTS": 17,
+    "GENERIC_EMAIL": 19,
+    "AMERICAN_FOOTBALL": 20,
+    "TIMELINE_CALENDAR": 21,
+    "TIMELINE_BASEBALL": 22,
+    "BIRTHDAY_EVENT": 23,
+    "CAR_RENTAL": 24,
+    "CLOUDY_DAY": 25,
+    "CRICKET_GAME": 26,
+    "DINNER_RESERVATION": 27,
+    "GENERIC_WARNING": 28,
+    "GLUCOSE_MONITOR": 29,
+    "HOCKEY_GAME": 30,
+    "HOTEL_RESERVATION": 31,
+    "LIGHT_RAIN": 32,
+    "LIGHT_SNOW": 33,
+    "MOVIE_EVENT": 34,
+    "MUSIC_EVENT": 35,
+    "NEWS_EVENT": 36,
+    "PARTLY_CLOUDY": 37,
+    "PAY_BILL": 38,
+    "RADIO_SHOW": 39,
+    "SCHEDULED_EVENT": 40,
+    "SOCCER_GAME": 41,
+    "STOCKS_EVENT": 42,
+    "RESULT_DELETED": 43,
+    "CHECK_INTERNET_CONNECTION": 44,
+    "GENERIC_SMS": 45,
+    "RESULT_MUTE": 46,
+    "RESULT_SENT": 47,
+    "WATCH_DISCONNECTED": 48,
+    "DURING_PHONE_CALL": 49,
+    "TIDE_IS_HIGH": 50,
+    "RESULT_DISMISSED": 51,
+    "HEAVY_RAIN": 52,
+    "HEAVY_SNOW": 53,
+    "SCHEDULED_FLIGHT": 54,
+    "GENERIC_CONFIRMATION": 55,
+    "DAY_SEPARATOR": 56,
+    "NO_EVENTS": 57,
+    "NOTIFICATION_BLACKBERRY_MESSENGER": 58,
+    "NOTIFICATION_INSTAGRAM": 59,
+    "NOTIFICATION_MAILBOX": 60,
+    "NOTIFICATION_GOOGLE_INBOX": 61,
+    "RESULT_FAILED": 62,
+    "GENERIC_QUESTION": 63,
+    "NOTIFICATION_OUTLOOK": 64,
+    "RAINING_AND_SNOWING": 65,
+    "REACHED_FITNESS_GOAL": 66,
+    "NOTIFICATION_LINE": 67,
+    "NOTIFICATION_SKYPE": 68,
+    "NOTIFICATION_SNAPCHAT": 69,
+    "NOTIFICATION_VIBER": 70,
+    "NOTIFICATION_WECHAT": 71,
+    "NOTIFICATION_YAHOO_MAIL": 72,
+    "TV_SHOW": 73,
+    "BASKETBALL": 74,
+    "DISMISSED_PHONE_CALL": 75,
+    "NOTIFICATION_GOOGLE_MESSENGER": 76,
+    "NOTIFICATION_HIPCHAT": 77,
+    "INCOMING_PHONE_CALL": 78,
+    "NOTIFICATION_KAKAOTALK": 79,
+    "NOTIFICATION_KIK": 80,
+    "NOTIFICATION_LIGHTHOUSE": 81,
+    "LOCATION": 82,
+    "SETTINGS": 83,
+    "SUNRISE": 84,
+    "SUNSET": 85,
+    "RESULT_UNMUTE": 86,
+    "RESULT_UNMUTE_ALT": 94,
+    "DURING_PHONE_CALL_CENTERED": 95,
+    "TIMELINE_EMPTY_CALENDAR": 96,
+    "THUMBS_UP": 97,
+    "ARROW_UP": 98,
+    "ARROW_DOWN": 99,
+    "ACTIVITY": 100,
+    "SLEEP": 101,
+    "REWARD_BAD": 102,
+    "REWARD_GOOD": 103,
+    "REWARD_AVERAGE": 104,
+    "NOTIFICATION_FACETIME": 110,
+    "NOTIFICATION_AMAZON": 111,
+    "NOTIFICATION_GOOGLE_MAPS": 112,
+    "NOTIFICATION_GOOGLE_PHOTOS": 113,
+    "NOTIFICATION_IOS_PHOTOS": 114,
+    "NOTIFICATION_LINKEDIN": 115,
+    "NOTIFICATION_SLACK": 116
+}
+
 function BlobDbService(pack, unpack) {
     var db = {
         Test: 0,
@@ -39,15 +144,14 @@ function BlobDbService(pack, unpack) {
     }
 
     this.prepareNotification = function(subject, message, sender = "", source = undefined) {
-        var encoder = new TextEncoder('utf-8');
         var attributes_count = 3;
         // attribute format: id(uint8) length(uint16) content(uint8array)
         var attributes = 
-            pack('<BHS', [0x01, encoder.encode(sender).length, sender])
+            pack('<B{HS}', [0x01, sender])
             .concat(pack('<BHI', [0x04, 4, source !== undefined ? source_map[source] : 1]))
-            .concat(pack('<BHS', [0x02, encoder.encode(subject).length, subject]));
+            .concat(pack('<B{HS}', [0x02, subject]));
         if (message) {
-            attributes = attributes.concat(pack('<BHS', [0x03, encoder.encode(message).length, message]));
+            attributes = attributes.concat(pack('<B{HS}', [0x03, message]));
             attributes_count++;
         }
 
@@ -76,6 +180,51 @@ function BlobDbService(pack, unpack) {
         return pack('<BHB', [0x01, randomToken, db.Notification])
             .concat(pack('<B', [itemid_packed.length])).concat(itemid_packed)
             .concat(pack('<H', [notification.length])).concat(notification);
+    }
+
+    this.prepareAppGlance = function(slicesData) {
+
+        var slices = [];
+        for (var data of slicesData) {
+
+            var expirationTime = data.expirationTime ? Math.floor(new Date(data.expirationTime).getTime() / 1000) : 0;
+            var icon = data.layout.icon;
+            var subtitle = data.layout.subtitleTemplateString;
+
+            if (icon.indexOf('system://images/') === 0)
+                icon = SYSTEM_ICONS_MAP[icon.substring('system://images/'.length)];
+
+            var attributes_count = 0;
+            var attributes = [];
+            if (icon) {
+                attributes = attributes.concat(pack('<BHI', [48, 4, icon]))
+                attributes_count++;
+            }
+            if (subtitle) {
+                attributes = attributes.concat(pack('<B{HS}', [47, subtitle]))
+                attributes_count++;
+            }
+            attributes = attributes.concat(pack('<BHI', [37, 4, expirationTime]))
+            attributes_count++;
+
+            slices = slices.concat(pack('<HBB', [4 + attributes.length, 0, attributes_count])).concat(attributes)
+        }
+
+        var appGlance = pack('<BI', [1, Math.floor(Date.now() / 1000)]).concat(slices);
+
+        var randomToken = Math.floor(Math.random()* 0xffff);
+
+        // yep, big endian here :facepalm:
+        var packedAppUuid = pack('>U', [CloudPebble.ProjectInfo.app_uuid]);
+
+        var insertBlobPacket = pack('<BHB', [0x01, randomToken, db.AppGlance])
+            .concat(pack('<B', [packedAppUuid.length])).concat(packedAppUuid)
+            .concat(pack('<H', [appGlance.length])).concat(appGlance);
+
+        return {
+            callbackToken: randomToken,
+            packet: insertBlobPacket
+        };
     }
 }
 
@@ -160,9 +309,9 @@ function AppMessageService(pack, unpack) {
             }
             if (typeof v === 'string')
                 message = message.concat(pack('<IBHS', [messageKey, VALUE_TYPES.CString, v.length + 1, v + '\0']));
-            else if (typeof v === 'number') {
+            else if (typeof v === 'number')
                 message = message.concat(pack('<IBHi', [messageKey, VALUE_TYPES.Int, 4, v]));
-            } else
+            else
                 message = message.concat(pack('<IBH', [messageKey, VALUE_TYPES.ByteArray, v.length]), v);
         }
 
@@ -222,8 +371,8 @@ function JsRuntime(pack, unpack, trigger, send_message, open_config_page, versio
             handler.call({});
     }
 
-    this.raiseCallback = function(transactionId, isSuccess, args) {
-        return state.callbacks[transactionId]?.[isSuccess ? 0 : 1]?.apply({}, args);
+    this.raiseCallback = function(eventName, key, isSuccess, args) {
+        return state.callbacks[eventName + '.' + key]?.[isSuccess ? 0 : 1]?.apply({}, args);
     }
 
     this.handleAppMessage = function(data) {
@@ -256,7 +405,7 @@ function PebbleRuntime(state, appMessageService, blobDbService, send_message, op
 
         var message = appMessageService.prepare(messageDict, state.transactionId);
 
-        state.callbacks[state.transactionId] = [onSuccess, onFailure];
+        state.callbacks['APPLICATION_MESSAGE.' + state.transactionId] = [onSuccess, onFailure];
         state.transactionId = (state.transactionId + 1) & 0xFF;
 
         send_message('APPLICATION_MESSAGE', message);
@@ -371,10 +520,12 @@ function PebbleRuntime(state, appMessageService, blobDbService, send_message, op
     this.getActiveWatchInfo = function () {
         return versionInfo;
     }
-    this.appGlanceReload = function () {
+    this.appGlanceReload = function (slices, onSuccess, onFailure) {
         ensureReady();
-        // TODO
-    }
+        var { callbackToken, packet } = blobDbService.prepareAppGlance(slices);
+        state.callbacks['BLOBDB.' + callbackToken] = [onSuccess, onFailure];
+        send_message('BLOBDB', packet);
+   }
 }
 
 function ConsoleRuntime(trigger) {
