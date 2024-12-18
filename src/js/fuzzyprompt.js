@@ -154,7 +154,7 @@ CloudPebble.FuzzyPrompt = (function() {
             }
         }
         else {
-            return fuse.search(parts[0]);
+            return fuse.search(parts[0]).map(i => i.item);
         }
     };
 
