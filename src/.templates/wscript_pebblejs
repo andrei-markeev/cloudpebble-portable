@@ -1,0 +1,61 @@
+import os
+
+from waflib.Configure import conf
+
+top = '.'
+out = 'build'
+
+
+def options(ctx):
+    ctx.load('pebble_sdk')
+
+
+def configure(ctx):
+    ctx.load('pebble_sdk')
+
+    for platform in ctx.env.TARGET_PLATFORMS:
+        ctx.configure_platform(platform)
+
+
+def build(ctx):
+    ctx.load('pebble_sdk')
+
+    ctx.load('pebble_sdk')
+
+    build_worker = os.path.exists('worker_src')
+    binaries = []
+
+    has_js = os.path.exists('src/js/pebble-js-app.js')
+
+    for p in ctx.env.TARGET_PLATFORMS:
+        ctx.set_env(ctx.all_envs[p])
+        ctx.set_group(ctx.env.PLATFORM_NAME)
+        app_elf='{}/pebble-app.elf'.format(p)
+        ctx.pbl_program(source=ctx.path.ant_glob('src/**/*.c'),
+        target=app_elf)
+
+        if build_worker:
+            worker_elf='{}/pebble-worker.elf'.format(p)
+            binaries.append({'platform': p, 'app_elf': app_elf, 'worker_elf': worker_elf})
+            ctx.pbl_worker(source=ctx.path.ant_glob('worker_src/**/*.c'),
+            target=worker_elf)
+        else:
+            binaries.append({'platform': p, 'app_elf': app_elf})
+
+    ctx.set_group('bundle')
+    ctx.pbl_bundle(binaries=binaries, js='src/js/pebble-js-app.js' if has_js else [])
+
+
+@conf
+def configure_platform(ctx, platform=None):
+    ctx.setenv(platform, ctx.all_envs[platform])
+
+    cflags = ctx.env.CFLAGS
+    cflags = [x for x in cflags if not x.startswith('-std=')]
+    cflags.extend(['-std=c11',
+                   '-fms-extensions',
+                   '-Wno-address',
+                   '-Wno-type-limits',
+                   '-Wno-missing-field-initializers'])
+
+    ctx.env.CFLAGS = cflags

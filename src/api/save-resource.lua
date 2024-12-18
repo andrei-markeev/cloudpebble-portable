@@ -112,7 +112,7 @@ local function arrayEqual(a1, a2)
     return true
 end
 
-local resource_files = ProjectFiles.findFiles(app_info, 'resource')
+local resource_files = ProjectFiles.findFiles(app_info.projectType, 'resource')
 for _, file_info in ipairs(resource_files) do
     local file_path = path.join(file_info.dir, file_info.name)
     local root_fname, tags = ResourceVariants.findTags(file_info.name);

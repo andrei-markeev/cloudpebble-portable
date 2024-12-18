@@ -2,9 +2,11 @@ local ProjectFiles = {}
 
 ---@alias TargetPlatform 'aplite' | 'basalt' | 'chalk' | 'diorite' | 'emery'
 
----@alias ProjectFileTarget 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource' | 'manifest' | 'wscript'
+---@alias ProjectFileTarget 'unknown' | 'app' | 'pkjs' | 'worker' | 'common' | 'public' | 'resource' | 'manifest'
 
 ---@alias Capability 'health' | 'location' | 'configurable'
+
+---@alias ProjectType 'native' | 'rocky' | 'package' | 'pebblejs' | 'simplyjs'
 
 ---@alias MediaItem {
     ---file: string,
@@ -21,7 +23,7 @@ local ProjectFiles = {}
 ---}
 
 ---@alias AppInfo {
-    ---projectType: 'native' | 'rocky' | 'package' | 'pebblejs' | 'simplyjs',
+    ---projectType: ProjectType,
     ---name: string,
     ---last_modified: number,
     ---uuid: string,
@@ -126,19 +128,19 @@ function ProjectFiles.saveAppInfoTo(app_info, base_dir)
 
 end
 
----@param app_info AppInfo
+---@param project_type ProjectType
 ---@param dir string
 ---@return ProjectFileTarget | nil
-function ProjectFiles.getFileTarget(app_info, dir, base_dir)
+function ProjectFiles.getFileTarget(project_type, dir, base_dir)
 
     ---@type ProjectFileTarget | nil
     local target = nil;
 
-    if app_info.projectType == 'package' and dir == path.join(base_dir, 'src/resources') then
+    if project_type == 'package' and dir == path.join(base_dir, 'src/resources') then
         target = 'resource'
-    elseif app_info.projectType ~= 'package' and dir == path.join(base_dir, 'resources') then
+    elseif project_type ~= 'package' and dir == path.join(base_dir, 'resources') then
         target = 'resource'
-    elseif app_info.projectType == 'native' then
+    elseif project_type == 'native' then
         if dir == path.join(base_dir, 'src') then
             target = 'app'
         elseif dir == path.join(base_dir, 'src/pkjs') or dir == path.join(base_dir, 'src/js') then
@@ -146,11 +148,11 @@ function ProjectFiles.getFileTarget(app_info, dir, base_dir)
         elseif dir == path.join(base_dir, 'worker_src/c') then
             target = 'worker'
         end
-    elseif app_info.projectType == 'simplyjs' and dir == path.join(base_dir, 'src/js') then
+    elseif project_type == 'simplyjs' and dir == path.join(base_dir, 'src/js') then
         target = 'app'
-    elseif app_info.projectType == 'pebblejs' and dir == path.join(base_dir, 'src') then
+    elseif project_type == 'pebblejs' and dir == path.join(base_dir, 'src') then
         target = 'app'
-    elseif app_info.projectType == 'rocky' then
+    elseif project_type == 'rocky' then
         if dir == path.join(base_dir, 'src/rocky') then
             target = 'app'
         elseif dir == path.join(base_dir, 'src/pkjs') then
@@ -158,7 +160,7 @@ function ProjectFiles.getFileTarget(app_info, dir, base_dir)
         elseif dir == path.join(base_dir, 'src/common') then
             target = 'common'
         end
-    elseif app_info.projectType == 'package' then
+    elseif project_type == 'package' then
         if dir == path.join(base_dir, 'src/c') then
             target = 'app'
         elseif dir == path.join(base_dir, 'src/js') then
@@ -171,17 +173,17 @@ function ProjectFiles.getFileTarget(app_info, dir, base_dir)
     return target;
 end
 
----@param app_info AppInfo
+---@param project_type ProjectType
 ---@param target ProjectFileTarget
 ---@param file_name string
-function ProjectFiles.isValidExtension(app_info, target, file_name)
+function ProjectFiles.isValidExtension(project_type, target, file_name)
 
     if target == 'unknown' or target == 'resource' then
         return true
     end
 
     local is_js_target = target == 'pkjs' or target == 'common'
-    local is_js_project = app_info.projectType == 'pebblejs' or app_info.projectType == 'simplyjs' or app_info.projectType == 'rocky'
+    local is_js_project = project_type == 'pebblejs' or project_type == 'simplyjs' or project_type == 'rocky'
     
     if is_js_project or is_js_target then
         return string.sub(file_name, -3) == '.js' or string.sub(file_name, -5) == '.json'
@@ -191,18 +193,18 @@ function ProjectFiles.isValidExtension(app_info, target, file_name)
 
 end
 
----@param app_info AppInfo
+---@param project_type ProjectType
 ---@param find_target ProjectFileTarget | 'all'
 ---@return { dir: string, name: string, target: ProjectFileTarget }[]
-function ProjectFiles.findFiles(app_info, find_target)
-    return ProjectFiles.findFilesAt(app_info, find_target, nil)
+function ProjectFiles.findFiles(project_type, find_target)
+    return ProjectFiles.findFilesAt(project_type, find_target, nil)
 end
 
----@param app_info AppInfo
+---@param project_type ProjectType
 ---@param find_target ProjectFileTarget | 'all'
 ---@param base_dir string | nil
 ---@return { dir: string, name: string, target: ProjectFileTarget }[]
-function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
+function ProjectFiles.findFilesAt(project_type, find_target, base_dir)
 
     ---@type { dir: string, name: string, target: ProjectFileTarget }[]
     local result = {}
@@ -215,7 +217,7 @@ function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
             if string.sub(name, 1, 1) ~= '.' then
                 if kind == unix.DT_DIR then
                     local child_dir = path.join(dir, name)
-                    local child_target = ProjectFiles.getFileTarget(app_info, child_dir, base_dir) or target
+                    local child_target = ProjectFiles.getFileTarget(project_type, child_dir, base_dir) or target
                     findRecursive(child_dir, child_target)
                 elseif kind == unix.DT_REG then
                     local file_target = target
@@ -236,32 +238,38 @@ function ProjectFiles.findFilesAt(app_info, find_target, base_dir)
     return result;
 end
 
----@param file_path string
+---@param source_dir string | nil
+---@param relative_file_path string
 ---@param target_dir string
 ---@param file_stat unix.Stat
----@overload fun(file_path, target_dir)
-function ProjectFiles.copyOneFile(file_path, target_dir, file_stat)
-    local target_file_path = path.join(target_dir, file_path)
-    local dir = path.dirname(file_path)
-    if not file_stat then
-        file_stat = assert(unix.stat(file_path))
-    end
+---@overload fun(source_dir: string | nil, relative_file_path: string, target_dir: string)
+function ProjectFiles.copyOneFile(source_dir, relative_file_path, target_dir, file_stat)
+    local file_path = path.join(source_dir, relative_file_path)
+    local target_file_path = path.join(target_dir, relative_file_path)
+
     Log(kLogInfo, 'Copying from ' .. file_path .. ' to ' .. target_file_path)
+
+    local dir = path.dirname(relative_file_path)
     if not path.exists(path.join(target_dir, dir)) then
         assert(unix.makedirs(path.join(target_dir, dir)))
     end
+
     local contents = assert(Slurp(file_path))
     assert(Barf(target_file_path, contents))
+
+    if not file_stat then
+        file_stat = assert(unix.stat(file_path))
+    end
     local access_sec, access_ns = file_stat:atim();
     local modified_sec, modified_ns = file_stat:mtim();
     assert(unix.utimensat(target_file_path, access_sec, access_ns, modified_sec, modified_ns))
 end
 
----@param app_info AppInfo
+---@param project_type ProjectType
 ---@param target_dir string
-function ProjectFiles.copyTo(app_info, target_dir)
+function ProjectFiles.copyTo(project_type, target_dir)
 
-    local file_list = ProjectFiles.findFiles(app_info, 'all')
+    local file_list = ProjectFiles.findFiles(project_type, 'all')
 
     for _, file_info in ipairs(file_list) do
         if file_info.target ~= 'unknown' then
@@ -277,7 +285,7 @@ function ProjectFiles.copyTo(app_info, target_dir)
                 end
             end
             if not skip then
-                ProjectFiles.copyOneFile(file_path, target_dir, file_stat)
+                ProjectFiles.copyOneFile(nil, file_path, target_dir, file_stat)
             end
         end
     end

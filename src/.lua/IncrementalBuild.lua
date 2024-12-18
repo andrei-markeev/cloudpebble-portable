@@ -5,8 +5,8 @@ local IncrementalBuild = {}
 ---@param assembled_dir string
 ---@return { type: 'unchanged' | 'only_js' | 'incremental' | 'full', copy?: string[], remove?: string[] }
 function IncrementalBuild.detectBuildType(app_info, assembled_dir)
-    local old_files = ProjectFiles.findFilesAt(app_info, 'all', assembled_dir)
-    local new_files = ProjectFiles.findFiles(app_info, 'all')
+    local old_files = ProjectFiles.findFilesAt(app_info.projectType, 'all', assembled_dir)
+    local new_files = ProjectFiles.findFiles(app_info.projectType, 'all')
 
     local file_dict = {}
     local c_changed = false

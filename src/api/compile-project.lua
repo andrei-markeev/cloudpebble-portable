@@ -42,22 +42,12 @@ end
 
 local app_info = assert(ProjectFiles.getAppInfo())
 
-if not path.exists(path.join(rootfs_dir, 'pebble/compile_' .. app_info.projectType .. '.sh')) then
+if app_info.projectType ~= 'native' and app_info.projectType ~= 'pebblejs' then
     SetStatus(200)
     SetHeader('Content-Type', 'application/json; charset=utf-8')
     Write(EncodeJson({
         success = false,
         error = 'Compilation of ' .. app_info.projectType .. ' projects is not supported yet!'
-    }))
-    return
-end
-
-if app_info.enableMultiJS and app_info.projectType ~= 'native' then
-    SetStatus(200)
-    SetHeader('Content-Type', 'application/json; charset=utf-8')
-    Write(EncodeJson({
-        success = false,
-        error = 'Compilation of projects of type ' .. app_info.projectType .. ' with enableMultiJS is not supported yet!'
     }))
     return
 end
@@ -168,15 +158,31 @@ if not build_info or build_info.type == 'full' then
     assert_fail_build(unix.mkdir(path.join(assembled_dir, 'resources/images')))
     assert_fail_build(unix.mkdir(path.join(assembled_dir, 'resources/data')))
 
-    ProjectFiles.copyTo(app_info, assembled_dir)
-    local wscript = LoadAsset('.templates/wscript')
+    if app_info.projectType == 'pebblejs' then
+        local pebblejs_src_dir = path.join(rootfs_dir, 'pebble/pebblejs')
+        local files = ProjectFiles.findFilesAt('native', 'all', pebblejs_src_dir)
+        for _, fileInfo in ipairs(files) do
+            if fileInfo.target ~= 'manifest' then
+                local relative_file_path = path.join(fileInfo.dir, fileInfo.name):sub(#pebblejs_src_dir + 2);
+                ProjectFiles.copyOneFile(pebblejs_src_dir, relative_file_path, assembled_dir)
+            end
+        end
+    end
+
+    ProjectFiles.copyTo(app_info.projectType, assembled_dir)
+    local wscript
+    if app_info.projectType == 'pebblejs' then
+        wscript = LoadAsset('.templates/wscript_pebblejs')
+    else
+        wscript = LoadAsset('.templates/wscript')
+    end
     assert_fail_build(Barf(path.join(assembled_dir, 'wscript'), wscript))
 else
     for _, file_path in ipairs(build_info.remove) do
         assert_fail_build(unix.unlink(path.join(assembled_dir, file_path)))
     end
     for _, file_path in ipairs(build_info.copy) do
-        ProjectFiles.copyOneFile(file_path, assembled_dir)
+        ProjectFiles.copyOneFile(nil, file_path, assembled_dir)
     end
 end
 
@@ -186,29 +192,29 @@ if app_info.projectType == 'native' then
         app_info.enableMultiJS = false
         app_info.dependencies = {}
         ProjectFiles.saveAppInfoTo(app_info, assembled_dir)
-        ConcatJavascript.concatWithLoader(app_info, assembled_dir, rootfs_dir, assert_fail_build)
+        ConcatJavascript.concatWithLoader(app_info.projectType, assembled_dir, rootfs_dir, assert_fail_build)
     else
-        ConcatJavascript.concatRaw(app_info, assembled_dir, rootfs_dir, assert_fail_build)
-    end
-    if build_info.type == 'only_js' then
-        local pjs = assert_fail_build(Slurp(path.join(assembled_dir, 'src/js/pebble-js-app.js')))
-        assert_fail_build(unix.rename(path.join(assembled_dir, 'src/js/pebble-js-app.js'), '.pebble/builds/' .. build_uuid .. '.js'))
-
-        local build_dir = path.join(assembled_dir, 'build')
-        local pbw_file_path = path.join(build_dir, 'assembled.pbw');
-        Log(kLogInfo, 'update zip started')
-        ZipUtil.update(pbw_file_path, 'pebble-js-app.js', '.pebble/builds/' .. build_uuid .. '.pbw', pjs)
-        Log(kLogInfo, 'update zip ended')
-
-        current_build.state = 3
-        current_build.finished = math.floor(GetTime() * 1000)
-        current_build.sizes = previousBuild.sizes
-        assert(Barf(build_db_filename, EncodeJson(builds)))
-        return
+        ConcatJavascript.concatRaw(app_info.projectType, assembled_dir, rootfs_dir, assert_fail_build)
     end
 elseif app_info.projectType == 'pebblejs' then
-    -- TODO: copy pebblejs files
-    -- ConcatJavascript.concatWithLoader(app_info, assembled_dir, rootfs_dir, assert_fail_build)
+    ConcatJavascript.concatWithLoader(app_info.projectType, assembled_dir, rootfs_dir, assert_fail_build)
+end
+
+if build_info.type == 'only_js' then
+    local pjs = assert_fail_build(Slurp(path.join(assembled_dir, 'src/js/pebble-js-app.js')))
+    assert_fail_build(unix.rename(path.join(assembled_dir, 'src/js/pebble-js-app.js'), '.pebble/builds/' .. build_uuid .. '.js'))
+
+    local build_dir = path.join(assembled_dir, 'build')
+    local pbw_file_path = path.join(build_dir, 'assembled.pbw');
+    Log(kLogInfo, 'update zip started')
+    ZipUtil.update(pbw_file_path, 'pebble-js-app.js', '.pebble/builds/' .. build_uuid .. '.pbw', pjs)
+    Log(kLogInfo, 'update zip ended')
+
+    current_build.state = 3
+    current_build.finished = math.floor(GetTime() * 1000)
+    current_build.sizes = previousBuild.sizes
+    assert(Barf(build_db_filename, EncodeJson(builds)))
+    return
 end
 
 if host_os == 'WINDOWS' then
@@ -234,7 +240,7 @@ if host_os == 'WINDOWS' then
             wsl_path,
             '--user', 'root',
             '--',
-            'sh', '-c', 'chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/compile_' .. app_info.projectType .. '.sh'
+            'sh', '-c', 'chroot /mnt/c/' .. string.sub(rootfs_dir, 4) .. ' sh -c pebble/compile.sh'
         })
 
         if err ~= nil then

@@ -25,7 +25,7 @@ end
 app_info.resources.media = new_media
 ProjectFiles.saveAppInfo(app_info)
 
-local resource_files = ProjectFiles.findFiles(app_info, 'resource')
+local resource_files = ProjectFiles.findFiles(app_info.projectType, 'resource')
 for _, file_info in ipairs(resource_files) do
     local file_path = path.join(file_info.dir, file_info.name)
     local root_fname = ResourceVariants.findTags(file_info.name);

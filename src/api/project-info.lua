@@ -12,7 +12,7 @@ if app_info == nil then
     return;
 end
 
-local all_files = ProjectFiles.findFiles(app_info, 'all')
+local all_files = ProjectFiles.findFiles(app_info.projectType, 'all')
 local files = {};
 local resource_variants = {};
 for _, file_info in ipairs(all_files) do
@@ -43,9 +43,9 @@ for _, file_info in ipairs(all_files) do
             table.insert(resource_variants[file_info.name], { [0] = false });
         end
 
-    elseif file_info.target ~= 'unknown' and file_info.target ~= 'wscript' and file_info.target ~= 'manifest' then
+    elseif file_info.target ~= 'unknown' and file_info.target ~= 'manifest' then
 
-        if ProjectFiles.isValidExtension(app_info, file_info.target, file_info.name) then
+        if ProjectFiles.isValidExtension(app_info.projectType, file_info.target, file_info.name) then
             local path_under_src = file_path
             if path_under_src:sub(1, 4) == 'src/' then
                 path_under_src = path_under_src:sub(5)
