@@ -10,7 +10,9 @@ CloudPebble Portable is aiming to be small and self-contained. The application i
 
 - [x] 🟢 Editing source files works: you can create, edit, rename, delete, etc.
 - [x] 🟢 Editing resources works
-- [ ] 🔴 Code completion doesn't work
+- [ ] 🟡 Code completion works partially:
+    - [ ] 🔴 Code completion for C
+    - [x] 🟢 Code completion for JS
 - [ ] 🟡 Compilation works partially:
     - [ ] 🟡 on Windows (via WSL and chroot)
         - [x] 🟢 Pebble C SDK

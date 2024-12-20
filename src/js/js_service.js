@@ -5,9 +5,52 @@ var IntellisenseHelper = (function () {
         this.tooltipLastPos = { line: -1, ch: -1 };
         this.fieldNames = [];
         this.typeScriptService = typeScriptService;
+        this.overloads = null;
         editor.on("cursorActivity", function (cm) {
             if (cm.getDoc().getCursor().line != _this.tooltipLastPos.line || cm.getDoc().getCursor().ch < _this.tooltipLastPos.ch) {
                 $('.tooltip').remove();
+                _this.overloads = null;
+            }
+        });
+
+        function updateTooltip() {
+            var details = _this.overloads[_this.selectedOverloadIndex];
+            var domElement = editor.getWrapperElement();
+            $(domElement)
+                .attr('title', '<div class="overloads-label">(' + (_this.selectedOverloadIndex + 1) + '/' + _this.overloads.length + ')</div>'
+                    + '<div class="tooltip-typeInfo">' + details.signatureString + '</div>' 
+                    + '<div class="tooltip-docComment">' + details.documentation + '</div>')
+                .tooltip('fixTitle')
+                .tooltip('show');
+        }
+
+        editor.setOption("extraKeys", {
+            "Up": function() {
+                console.log("Key Up pressed");
+                if (!_this.overloads)
+                    return CodeMirror.Pass;
+                if (_this.selectedOverloadIndex <= 0)
+                    return;
+
+                _this.selectedOverloadIndex--;
+                updateTooltip();
+            },
+            "Down": function() {
+                console.log("Key Down pressed");
+                if (!_this.overloads)
+                    return CodeMirror.Pass;
+                if (_this.selectedOverloadIndex >= _this.overloads.length - 1)
+                    return;
+
+                _this.selectedOverloadIndex++;
+                updateTooltip();
+            },
+            "Esc": function() {
+                if (!_this.overloads)
+                    return CodeMirror.PASS;
+
+                $('.tooltip').remove();
+                _this.overloads = null;
             }
         });
     }
@@ -57,9 +100,9 @@ var IntellisenseHelper = (function () {
                         list: show_words
                     };
                 }
-                var tooltip;
                 CodeMirror.on(completionInfo, "select", function (completion, element) {
                     $('.tooltip').remove();
+                    _this.overloads = null;
                     if (!completion.typeInfo && completion.pos) {
                         var details = _this.typeScriptService.getCompletionDetails(filePath, completion.pos, completion.text);
                         completion.typeInfo = _this.joinParts(details.displayParts);
@@ -82,6 +125,7 @@ var IntellisenseHelper = (function () {
                 });
                 CodeMirror.on(completionInfo, "close", function () {
                     $('.tooltip').remove();
+                    _this.overloads = null;
                 });
                 return completionInfo;
             }
@@ -92,6 +136,7 @@ var IntellisenseHelper = (function () {
         if (completions == null)
             return;
         $('.tooltip').remove();
+        this.overloads = null;
         var list = [];
         for (var i = 0; i < completions.entries.length; i++) {
             list.push({
@@ -107,28 +152,51 @@ var IntellisenseHelper = (function () {
     IntellisenseHelper.prototype.showFunctionTooltip = function (filePath, cm, changePosition) {
         var _this = this;
         $('.tooltip').remove();
+        this.overloads = null;
         var signatures = this.typeScriptService.getSignature(filePath, changePosition);
         if (signatures && signatures.items && signatures.selectedItemIndex >= 0) {
-            var signature = signatures.items[signatures.selectedItemIndex];
-            var paramsString = signature.parameters
-                .map(function (p) { return _this.joinParts(p.displayParts); })
-                .join(this.joinParts(signature.separatorDisplayParts));
-            var signatureString = this.joinParts(signature.prefixDisplayParts) + paramsString + this.joinParts(signature.suffixDisplayParts);
+            var overloads = [];
+            for (var i = 0; i < signatures.items.length; i++) {
+                var overload = {};
+                var signature = signatures.items[i];
+                var paramsString = signature.parameters
+                    .map(function (p) { return _this.joinParts(p.displayParts); })
+                    .join(this.joinParts(signature.separatorDisplayParts));
+                overload.signatureString = this.joinParts(signature.prefixDisplayParts) + paramsString + this.joinParts(signature.suffixDisplayParts);
+                overload.documentation = this.joinParts(signature.documentation)
+                overloads.push(overload);
+            }
+
+            var overloadsSidebar = overloads.length > 1 ? '<div class="overloads-label">(' + (signatures.selectedItemIndex + 1) + '/' + overloads.length + ')</div>' : '';
+    
+            var selectedOverload = overloads[signatures.selectedItemIndex];
             this.tooltipLastPos = cm.getCursor();
             var cursorCoords = cm.cursorCoords(cm.getCursor(), "page");
             var domElement = cm.getWrapperElement();
-            $(domElement).tooltip({
-                animation: false,
-                html: true,
-                title: '<div class="tooltip-typeInfo">' + signatureString + '</div>' + '<div class="tooltip-docComment">' + this.joinParts(signature.documentation) + '</div>',
-                trigger: 'manual', container: 'body', placement: 'bottom'
-            });
-            $(domElement).off('shown').on('shown', function () {
-                $('.tooltip').css('position', 'absolute').css('z-index', 2).css('top', cursorCoords.bottom + "px").css('left', cursorCoords.left + "px");
-            });
-            $(domElement).tooltip('show');
+            $(domElement)
+                .tooltip({
+                    animation: false,
+                    html: true,
+                    trigger: 'manual', container: 'body', placement: 'bottom'
+                })
+                .attr('title', overloadsSidebar
+                    + '<div class="tooltip-typeInfo">' + selectedOverload.signatureString + '</div>'
+                    + '<div class="tooltip-docComment">' + selectedOverload.documentation + '</div>'
+                )
+                .tooltip('fixTitle')
+                .off('shown')
+                .on('shown', function () {
+                    $('.tooltip').css('position', 'absolute').css('z-index', 2).css('top', cursorCoords.bottom + "px").css('left', cursorCoords.left + "px");
+                })
+                .tooltip('show');
+
+            if (overloads.length > 1) {
+                this.selectedOverloadIndex = signatures.selectedItemIndex;
+                this.overloads = overloads;
+            }
         }
     };
+
     IntellisenseHelper.prototype.scriptChanged = function (filePath, cm, changeText, changePos) {
         if (changeText == '.') {
             this.showAutoCompleteDropDown(filePath, cm, changePos);
@@ -138,6 +206,7 @@ var IntellisenseHelper = (function () {
         }
         else if (changeText == ')') {
             $('.tooltip').remove();
+            this.overloads = null;
         }
     };
     return IntellisenseHelper;
