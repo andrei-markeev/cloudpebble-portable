@@ -1,3 +1,45 @@
+interface WatchInfo {
+    /** Hardware platform:
+     * - `aplite` - Pebble and Pebble Steel
+     * - `basalt` - Pebble Time and Pebble Time Steel
+     * - `chalk` - Pebble Time Round
+     * - `diorite` - Pebble 2
+     * - `emery` - Pebble Time 2
+     */
+    platform: 'aplite' | 'basalt' | 'chalk' | 'diorite' | 'emery';
+
+    /** Watch model */
+    model: 'pebble_black' | 'pebble_white' | 'pebble_red' | 'pebble_orange' | 'pebble_grey' | 'pebble_blue' | 'pebble_green' | 'pebble_pink'
+        | 'pebble_steel_silver' | 'pebble_steel_black' 
+        | 'pebble_time_white' | 'pebble_time_black' | 'pebble_time_red'
+        | 'pebble_time_steel_silver' | 'pebble_time_steel_black' | 'pebble_time_steel_gold'
+        | 'pebble_time_round_silver_14' | 'pebble_time_round_black_14' | 'pebble_time_round_rose_gold_14'
+        | 'pebble_time_round_silver_20' | 'pebble_time_round_black_20'
+
+    /** The user's currently selected language on this watch. For example, `en-US` */
+    language: string;
+
+    /** Firmware version */
+    firmware: {
+        major: number;
+        minor: number;
+        patch: number;
+        /** Any additional version information, such as beta3 */
+        suffix: string;
+    }
+}
+
+interface AppGlanceSlice {
+    /** Optional ISO date-time string of when the entry should expire and no longer be shown in the app glance. */
+    expirationTime: string;
+    layout: {
+        /** URI string of the icon to display in the app glance, e.g. system://images/ALARM_CLOCK. */
+        icon: string;
+        /** Template string that will be displayed in the subtitle of the app glance. */
+        subtitleTemplateString: string;
+    }
+}
+
 interface PebbleRuntime {
     /**
      * Send an AppMessage to the app running on the watch. Messages should be in the form of JSON objects containing key-value pairs.
@@ -55,7 +97,29 @@ interface PebbleRuntime {
      * More details: [App Configuration (Manual setup)](https://developer.rebble.io/developer.pebble.com/guides/user-interfaces/app-configuration-static/index.html)
      */
     addEventListener(type: 'webviewclosed', callback: (event: { response: string }) => void): void;
-    
+
+    /** Remove an existing event listener previously registered with Pebble.addEventListener(). */
+    removeEventListener(type: 'ready' | 'appmessage' | 'showConfiguration' | 'webviewclosed', callback: Function): void;
+
+    /** Show a simple modal notification on the connected watch. */
+    showSimpleNotificationOnPebble(title: string, body: string): void;
+
+    /** Get the user's timeline token for this app. This is a string and is unique per user per app. Note: In order for timeline tokens
+     *  to be available, the app must be submitted to the Pebble appstore, but does not need to be public. Read more in the timeline guides. */
+    getTimelineToken(onSuccess: (token: string) => void, onFailure: () => void): void;
+
+    /** Obtain an object containing information on the currently connected Pebble smartwatch. */
+    getActiveWatchInfo(): WatchInfo;
+
+    /** Returns a unique account token that is associated with the Pebble account of the current user.
+     * @returns A string that is guaranteed to be identical across devices if the user owns several Pebble or several mobile devices.
+     * From the developer's perspective, the account token of a user is identical across platforms and across all the developer's watchapps.
+     * If the user is not logged in, this function will return an empty string ('').
+     */
+    getAccountToken(): string;
+
+    /** Triggers a reload of the app glance which first clears any existing slices and then adds the provided slices. */
+    appGlanceReload(appGlanceSlices: AppGlanceSlice[], onSuccess: (slices: AppGlanceSlice[]) => void, onFailure: () => {}): void;
 }
 
 declare var Pebble: PebbleRuntime;
