@@ -113,7 +113,6 @@ CloudPebble.Editor = (function() {
                 autofocus: true,
                 electricChars: true,
                 matchBrackets: true,
-                autoCloseBrackets: true,
                 //highlightSelectionMatches: true,
                 smartIndent: true,
                 indentWithTabs: !USER_SETTINGS.use_spaces,
@@ -278,116 +277,10 @@ CloudPebble.Editor = (function() {
                 });
             }
 
-            if(file_kind_in(['json', 'js'])) {
-                var warning_lines = [];
-                var do_hint = function() {
-                    var errors = [];
-                    // Clear things out, even if jslint is off
-                    // (the user might have just turned it off).
-                    code_mirror.clearGutter('gutter-hint-warnings');
-                    for (let line of warning_lines) {
-                        code_mirror.removeLineClass(line, 'background', 'line-hint-warning');
-                    }
-                    warning_lines = [];
-
-                    if (file_kind == 'js') {
-                        var jshint_globals = {
-                            console: true,
-                            setTimeout: true,
-                            setInterval: true,
-                            Int8Array: true,
-                            Uint8Array: true,
-                            Uint8ClampedArray: true,
-                            Int16Array: true,
-                            Uint16Array: true,
-                            Int32Array: true,
-                            Uint32Array: true,
-                            Float32Array: true,
-                            Float64Array: true
-                        };
-
-                        if (CloudPebble.ProjectInfo.type != 'rocky') {
-                            jshint_globals = {
-                                ...jshint_globals,
-                                Pebble: true,
-                                WebSocket: true,
-                                XMLHttpRequest: true,
-                                navigator: true,
-                                localStorage: true
-                            };
-                        }
-
-                        if (CloudPebble.ProjectInfo.type == 'simplyjs') {
-                            jshint_globals = {
-                                ...jshint_globals,
-                                simply: true,
-                                util2: true,
-                                ajax: true
-                            };
-                        } else if (CloudPebble.ProjectInfo.type == 'pebblejs') {
-                            jshint_globals = {
-                                ...jshint_globals,
-                                require: true,
-                                ajax: true
-                            };
-                        } else if (CloudPebble.ProjectInfo.app_modern_multi_js) {
-                            jshint_globals = {
-                                ...jshint_globals,
-                                require: true,
-                                exports: true,
-                                module: true
-                            };
-                        }
-
-                        var success = JSHINT(code_mirror.getValue(), {
-                            freeze: true,
-                            evil: false,
-                            immed: true,
-                            latedef: "nofunc",
-                            undef: true,
-                            unused: "vars"
-                        }, jshint_globals);
-                        if (!success) {
-                            errors = JSHINT.errors;
-                        }
-                    }
-                    else {
-                        var code = code_mirror.getValue();
-                        try {
-                            JSON.parse(code);
-                        }
-                        catch (e) {
-                            var m = e.message.match(/at position (\d+) \(line (\d+) column (\d+)\)/);
-                            var line = m ? +m[2] : 1;
-                            errors = [{
-                                reason: e.message,
-                                line: line
-                            }]
-                        }
-                    }
-
-                    for (let error of errors) {
-                        // It is apparently possible to get null errors; omit them.
-                        if(!error) continue;
-                        // If there are multiple errors on one line, we'll have already placed a marker here.
-                        // Instead of replacing it with a new one, just update it.
-                        var markers = code_mirror.lineInfo(error.line - 1).gutterMarkers;
-                        if(markers && markers['gutter-hint-warnings']) {
-                            var marker = $(markers['gutter-hint-warnings']);
-                            marker.attr('title', marker.attr('title') + "\n" + error.reason);
-                        } else {
-                            var warning = $('<i class="icon-warning-sign icon-white"></span>');
-                            warning.attr('title', error.reason);
-                            code_mirror.setGutterMarker(error.line - 1, 'gutter-hint-warnings', warning[0]);
-                            warning_lines.push(code_mirror.addLineClass(error.line - 1, 'background', 'line-hint-warning'));
-                        }
-                    }
-                };
-                code_mirror.on('change', _.debounce(do_hint, 1000));
-                // Make sure we're ready when we start.
-
-                do_hint();
+            if (file_kind_in(['json', 'js'])) {
+                ActivateJsService(code_mirror, file.file_path);
             }
+
             if (file_kind == 'c') {
                 var clang_lines = [];
                 var sChecking = false;

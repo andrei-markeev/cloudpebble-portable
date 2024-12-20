@@ -1394,3 +1394,39 @@ label .text-icon {
 .spinner-light {
     background-image: url("/img/spinner.gif");
 }
+
+.tooltip-inner {
+    max-width:400px;
+    color: #dad7d7;
+    background-color: #4d4c4c;
+    border: 1px solid #333333;
+    text-align: left;
+	padding: 5px;
+}
+.tooltip-arrow {
+    visibility: hidden;
+}
+.tooltip-inner .keyword
+{
+    color: #5da6f2;
+}
+.tooltip-inner .localName, .tooltip-inner .interfaceName
+{
+    color: #68d1d8;
+}
+.tooltip-inner .stringLiteral {
+    color: #bc7312;
+}
+.tooltip-docComment {
+    color: #cac7c7;
+}
+.tooltip-docComment:not(:empty) {
+	margin-top: 3px;
+    border-top: 1px solid #999;
+	padding-top: 3px;
+}
+.syntax-error {
+    background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAYAAAC09K7GAAAAAXNSR0IArs4c6QAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB9sJDw4cOCW1/KIAAAAZdEVYdENvbW1lbnQAQ3JlYXRlZCB3aXRoIEdJTVBXgQ4XAAAAHElEQVQI12NggIL/DAz/GdA5/xkY/qPKMDAwAADLZwf5rvm+LQAAAABJRU5ErkJggg==");
+    background-position: bottom left;
+    background-repeat: repeat-x;
+}
