@@ -3,7 +3,6 @@ var IntellisenseHelper = (function () {
     function IntellisenseHelper(typeScriptService, editor) {
         var _this = this;
         this.tooltipLastPos = { line: -1, ch: -1 };
-        this.fieldNames = [];
         this.typeScriptService = typeScriptService;
         this.overloads = null;
         editor.on("cursorActivity", function (cm) {
@@ -54,9 +53,6 @@ var IntellisenseHelper = (function () {
             }
         });
     }
-    IntellisenseHelper.prototype.setFieldInternalNames = function (fieldNames) {
-        this.fieldNames = fieldNames;
-    };
     IntellisenseHelper.prototype.joinParts = function (displayParts) {
         if (displayParts)
             return displayParts.map(function (p) { return p.kind == "punctuation" || p.kind == "space" ? p.text : "<span class=\"" + p.kind + "\">" + p.text + "</span>"; }).join("").replace('\n', '<br/>');
@@ -197,6 +193,70 @@ var IntellisenseHelper = (function () {
         }
     };
 
+    IntellisenseHelper.prototype.setupHoverTooltips = function (filePath, cm) {
+        var _this = this;
+        var timeoutHandle = 0;
+        var savedX = null, savedY = null, shown = false;
+        function debounceTooltipOnHover(event) {
+            if (_this.overloads)
+                return;
+
+            if (shown && (Math.abs(event.pageX - savedX) > 50 || Math.abs(event.pageY - savedY) > 50)) {
+                $('.tooltip').remove();
+                _this.overloads = null;
+                shown = false;
+            }
+
+            if (savedX === null || Math.abs(event.pageX - savedX) > 10 || Math.abs(event.pageY - savedY) > 10) {
+                savedX = event.pageX;
+                savedY = event.pageY;
+
+                if (timeoutHandle)
+                    clearTimeout(timeoutHandle);
+                timeoutHandle = setTimeout(function () {
+                    if (_this.overloads)
+                        return;
+                    var char = cm.coordsChar({left: savedX, top: savedY});
+                    var index = cm.indexFromPos(char) + 1;
+                    var quickInfo = _this.typeScriptService.tsService.getQuickInfoAtPosition(filePath, index);
+                    if (quickInfo) {
+                        $('.tooltip').remove();
+
+                        var typeInfo = _this.joinParts(quickInfo.displayParts);
+                        var documentation = _this.joinParts(quickInfo.documentation);
+                        var domElement = cm.getWrapperElement();
+                        $(domElement)
+                            .tooltip({
+                                animation: false,
+                                html: true,
+                                trigger: 'manual', container: 'body', placement: 'bottom'
+                            })
+                            .attr('title', '<div class="tooltip-typeInfo">' + typeInfo + '</div>'
+                                + '<div class="tooltip-docComment">' + documentation + '</div>'
+                            )
+                            .tooltip('fixTitle')
+                            .off('shown')
+                            .on('shown', function () {
+                                $('.tooltip').css('position', 'absolute').css('z-index', 2).css('top', (savedY + 5) + "px").css('left', savedX + "px");
+                            })
+                            .tooltip('show');
+
+                        shown = true;
+                    }
+                }, 900);
+            }
+
+        }
+
+        var domElement = cm.getWrapperElement();
+        $(domElement).off('mousemove', debounceTooltipOnHover).on('mousemove', debounceTooltipOnHover);
+
+        cm.on('scroll', function() {
+            $('.tooltip').remove();
+            _this.overloads = null;
+        })
+    };
+
     IntellisenseHelper.prototype.scriptChanged = function (filePath, cm, changeText, changePos) {
         if (changeText == '.') {
             this.showAutoCompleteDropDown(filePath, cm, changePos);
@@ -321,10 +381,12 @@ async function ActivateJsService(cm, filePath) {
         JsService.intellisenseHelper = new IntellisenseHelper(JsService.typeScriptService, cm);
         checkSyntax(cm);
         cm.on("change", processChanges)
+        JsService.intellisenseHelper.setupHoverTooltips(filePath, cm);
     } else {
         JsService.host.addFile(filePath, cm.getValue());
         checkSyntax(cm);
         cm.on("change", processChanges)
+        JsService.intellisenseHelper.setupHoverTooltips(filePath, cm);
     }
 
     function processChanges(cm, changeObj) {
