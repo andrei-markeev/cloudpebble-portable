@@ -222,20 +222,20 @@ var TypeScriptServiceHost = (function () {
         this.scriptVersion[filePath] = 0;
         this.text[filePath] = fileText;
         this.changes[filePath] = [];
-        this.scripts = ['libs.ts', filePath];
+        this.scripts = ['libs.d.ts', filePath];
     }
     TypeScriptServiceHost.prototype.log = function (message) { console.log("tsHost: " + message); };
     TypeScriptServiceHost.prototype.getCompilationSettings = function () { return { target: ts.ScriptTarget.ES6, allowJs: true }; };
     TypeScriptServiceHost.prototype.getScriptFileNames = function () { return this.scripts; };
     TypeScriptServiceHost.prototype.getScriptVersion = function (fn) { return (this.scriptVersion[fn] || 0).toString(); };
     TypeScriptServiceHost.prototype.getScriptSnapshot = function (fn) {
-        if (fn == 'libs.ts')
+        if (fn == 'libs.d.ts')
             return ts.ScriptSnapshot.fromString(this.libText);
         else
             return ts.ScriptSnapshot.fromString(this.text[fn]);
     };
     TypeScriptServiceHost.prototype.getCurrentDirectory = function () { return ""; };
-    TypeScriptServiceHost.prototype.getDefaultLibFileName = function () { return "libs.ts"; };
+    TypeScriptServiceHost.prototype.getDefaultLibFileName = function () { return "libs.d.ts"; };
     TypeScriptServiceHost.prototype.scriptChanged = function (fn, newText, startPos, changeLength) {
         if (startPos === void 0) { startPos = 0; }
         if (changeLength === void 0) { changeLength = 0; }
@@ -244,7 +244,12 @@ var TypeScriptServiceHost = (function () {
         if (startPos > 0 || changeLength > 0)
             this.changes[fn].push(ts.createTextChangeRange(ts.createTextSpan(startPos, changeLength), newText.length));
     };
-    TypeScriptServiceHost.prototype.addFile = function (fn) { this.scripts.push(fn) };
+    TypeScriptServiceHost.prototype.addFile = function (fn, fileText) {
+        this.scripts.push(fn);
+        this.scriptVersion[fn] = 0;
+        this.text[fn] = fileText;
+        this.changes[fn] = [];
+    };
     return TypeScriptServiceHost;
 }());
 
@@ -286,24 +291,36 @@ var JsService = {
     intellisenseHelper: null
 };
 
-function ActivateJsService(cm, filePath) {
+function getFile(url) {
+    return new Promise(function(resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState != 4)
+                return;
+            resolve(xhr.responseText);
+        };
+        xhr.onerror = function(e) { reject(e) };
+        xhr.send();
+    });
+}
+
+async function ActivateJsService(cm, filePath) {
 
     filePath = filePath.replace(/\.js$/, '.ts')
 
     if (!JsService.ready) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', '/data/libs.d.ts');
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState != 4)
-                return;
-            JsService.host = new TypeScriptServiceHost(xhr.responseText, filePath, cm.getValue());
-            var tsService = ts.createLanguageService(JsService.host, ts.createDocumentRegistry());
-            JsService.typeScriptService = new TypeScriptService(JsService.host, tsService);
-            JsService.intellisenseHelper = new IntellisenseHelper(JsService.typeScriptService, cm);
-            checkSyntax(cm);
-            cm.on("change", processChanges)
-        };
-        xhr.send();
+        var libText = await getFile('/data/libs.d.ts');
+        JsService.host = new TypeScriptServiceHost(libText, filePath, cm.getValue());
+        if (CloudPebble.ProjectInfo.type === 'pebblejs') {
+            var pebbleJsLibText = await getFile('/data/pebblejs.d.ts');
+            JsService.host.addFile('pebblejs.d.ts', pebbleJsLibText);
+        }
+        var tsService = ts.createLanguageService(JsService.host, ts.createDocumentRegistry());
+        JsService.typeScriptService = new TypeScriptService(JsService.host, tsService);
+        JsService.intellisenseHelper = new IntellisenseHelper(JsService.typeScriptService, cm);
+        checkSyntax(cm);
+        cm.on("change", processChanges)
     } else {
         JsService.host.addFile(filePath, cm.getValue());
         checkSyntax(cm);
