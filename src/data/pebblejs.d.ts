@@ -100,6 +100,315 @@ type PebbleJsAjax =
     onFailure: (data: string | Object, statusCode: number, request) => void
 ) => void;
 
+interface PebbleJsVector2 {
+    new(x: number, y: number);
+    x: number;
+    y: number;
+}
+
+namespace PebbleJsUI {
+
+    type Color = 'black' | 'white' | 'clear';
+
+    interface ActionDef {
+        /** An image to display in the action bar, next to the up button. */
+        up?: string;
+        /** An image to display in the action bar, next to the down button. */
+        down?: string;
+        /** An image to display in the action bar, next to the select button. */
+        select?: string;
+        /** The background color of the action bar. You can set this to 'white' for windows with black backgrounds. */
+        backgroundColor?: Color;
+    }
+
+    interface StatusDef {
+        /** The separate between the status bar and the content of the window. */
+        separator?: 'dotted' | 'none';
+
+        /** The foreground color of the status bar used to display the separator and time text. */
+        color?: Color;
+
+        /** The background color of the status bar. You can set this to 'black' for windows with white backgrounds. */
+        backgroundColor?: Color;
+    }
+
+    interface WindowOptions {
+
+        clear?: boolean;
+
+        /** Action bar settings */
+        action?: ActionDef;
+
+        /** When `true`, the Pebble status bar will not be visible and the window will use the entire screen.
+         * 
+         * **Note**: `fullscreen` has been deprecated by `status` which allows settings
+         * its color and separator in a similar manner to the `action` property.
+         * 
+         * Remove usages of `fullscreen` to enable usage of `status`.
+        */
+        fullscreen?: boolean;
+
+        /** Whether the user can scroll this card with the up and down button.
+         * When this is enabled, single and long click events on the up and down button
+         * will not be transmitted to your app. */
+        scrollable?: boolean;
+    }
+
+    abstract class WindowBase {
+        /** This will push the window to the screen and display it. If user press the 'back' button, they
+         * will navigate to the previous screen. */
+        show(): void;
+
+        /** This hides the window.
+         * 
+         * If the window is currently displayed, this will take the user to the previously
+         * displayed window.
+         * 
+         * If the window is not currently displayed, this will remove it from the window stack.
+         * The user will not be able to get back to it with the back button. */
+        hide(): void;
+
+        /** Registers a handler to call when button is pressed.
+         * 
+         * _Note_: You can also register button handlers for longClick.
+        */
+        on(eventName: 'click', button: 'up' | 'select' | 'down' | 'back', handler: () => void): void;
+
+        /** Registers a handler to call when long press of the specified button was detected. */
+        on(eventName: 'longClick', button: 'up' | 'select' | 'down' | 'back', handler: () => void): void;
+
+        /** Registers a handler to call when the window is shown. This is useful for knowing when a user returns
+         * to your window from another. This event is also emitted when programmatically showing the window.
+         * 
+         * This does **not** include when a Pebble notification popup is exited, revealing your window.
+         */
+        on(eventName: 'show', handler: () => void): void;
+
+        /** Registers a handler to call when the window is hidden. This is useful for knowing when a user exits
+         * out of your window or when your window is no longer visible because a different window is pushed on top.
+         * This event is also emitted when programmatically hiding the window. This does not include when a Pebble
+         * notification popup obstructs your window.
+         * 
+         * It is recommended to use this instead of overriding the back button when appropriate.
+         */
+        on(eventName: 'hide', handler: () => void): void;
+
+        /** Nested accessor to the action property which takes an actionDef. Used to configure the action bar
+         * with a new actionDef. See Window actionDef.
+         * 
+         * To disable the action bar after enabling it, `false` can be passed in place of an actionDef.
+         */
+        action(actionDef: ActionDef | false): void;
+
+        /** Window.action can also be called with two arguments, field and value, to set specific fields of the window’s
+         * action property. `field` is the name of a Window actionDef property as a string and `value` is the new property value. */
+        action(field: 'up' | 'down' | 'select' | 'backgroundColor', value: string): void;
+
+        /** Nested accessor to the status property which takes a statusDef. Used to configure the status bar with a new statusDef.
+         * 
+         * To disable the status bar after enabling it, `false` can be passed in place of statusDef.
+         * 
+         * Similarly, `true` can be used as a Window statusDef to represent a statusDef with all default properties.
+         */
+        status(statusDef: StatusDef | boolean): void;
+
+        /** Window.status can also be called with two arguments, field and value, to set specific fields of the window’s
+         * status property. `field` is the name of a Window statusDef property as a string and `value` is the new property value. */
+        status(field: 'separator' | 'color' | 'backgroundColor', value: string): void;
+
+        /** Returns the size of the max viewable content size of the window as a Vector2 taking into account whether 
+         * there is an action bar and status bar. A Window will return a size that is shorter than a Window without for example.
+         * 
+         * If the automatic consideration of the action bar and status bar does not satisfy your use case, you can use 
+         * Feature.resolution() to obtain the Pebble’s screen resolution as a Vector2. */
+        size(): { x: number, y: number };
+    }
+
+    /** Unlike Card and Menu that provide mostly predefined, fixed interface, Window
+     * is the most flexible. It allows you to add different Elements 
+     * (Circle, Image, Line, Radial, Rect, Text, TimeText) and to specify a position and size
+     * for each of them. Elements can also be animated.
+     */
+    class Window extends WindowBase {
+        constructor(options: WindowOptions)
+
+        /** Adds an element to to the Window. The element will be immediately visible. */
+        add(element: Element): void;
+
+        /** Inserts an element at a specific index in the list of Element. */
+        insert(index: number, element: Element): void;
+
+        /** Removes an element from the Window. */
+        remove(element: Element): void;
+
+        /** Returns the index of an element in the Window or -1 if the element is not in the window. */
+        index(element: Element): void;
+
+        /** Iterates over all the elements on the Window. */
+        each(callback: (element: Element) => void): void;
+    }
+
+    interface CardOptions extends WindowOptions {
+        /** Text to display in the title field at the top of the screen */
+        title?: string;
+        /** Text color of the title field */
+        titleColor?: Color;
+        /** Text to display below the title */
+        subtitle?: string;
+        /** Text to display in the body field */
+        body?: string;
+        /** Text color of the body field */
+        bodyColor?: Color;
+        /** An image to display before the title text */
+        icon?: string;
+        /** An image to display before the subtitle text. */
+        subicon?: string;
+        /** An image to display in the center of the screen.  */
+        banner?: string;
+        /** Selects the font used to display the body
+         * 
+         * The `small` and `large` styles correspond to the system notification styles.
+         * `mono` sets a monospace font for the body textfield, enabling more complex text UIs or ASCII art.
+         */
+        style?: 'small' | 'large' | 'mono';
+    }
+
+    /** A Card is a type of Window that allows you to display a title, a subtitle, an image and
+     * a body on the screen of Pebble.
+     * 
+     * Just like any window, you can initialize a Card by passing an object to the constructor
+     * or by calling accessors to change the properties.
+     * 
+     * Note that all text fields will automatically span multiple lines if needed and that you
+     * can use '\n' to insert line breaks.*/
+    class Card extends Window {
+        constructor(options: CardOptions);
+
+        /** Get text to display in the title field at the top of the screen */
+        title(): string;
+        /** Set text to display in the title field at the top of the screen */
+        title(value: string): void;
+
+        /** Get text color of the title field */
+        titleColor(): Color;
+        /** Set text color of the title field */
+        titleColor(value: Color): void;
+
+        /** Get text to display below the title */
+        subtitle(): string;
+        /** Set text to display below the title */
+        subtitle(value: string): void;
+
+        /** Get text to display in the body field */
+        body(): string;
+        /** Set text to display in the body field */
+        body(value: string): void;
+
+        /** Get text color of the body field */
+        bodyColor(): Color;
+        /** Set text color of the body field */
+        bodyColor(value: Color): void;
+
+        /** Get an image to display before the title text */
+        icon(): string;
+        /** Set an image to display before the title text */
+        icon(value: string): void;
+
+        /** Get an image to display before the subtitle text. */
+        subicon(): string;
+        /** Set an image to display before the subtitle text. */
+        subicon(value: string): void;
+
+        /** Get an image to display in the center of the screen.  */
+        banner(): string;
+        /** Set an image to display in the center of the screen.  */
+        banner(value: string): void;
+
+        /** Get font style used to display the body */
+        style(): void;
+
+        /** Selects the font used to display the body
+         * 
+         * The `small` and `large` styles correspond to the system notification styles.
+         * `mono` sets a monospace font for the body textfield, enabling more complex text UIs or ASCII art.
+         */
+        style(value: 'small' | 'large' | 'mono'): void;
+    }
+
+    interface MenuItem {
+        title: string;
+        subtitle?: string;
+        icon?: string;
+    }
+    interface MenuSection {
+        /** A list of all the items to display */
+        items?: MenuItem[],
+        /** Title text of the section header */
+        title?: string;
+        /** The background color of the section header */
+        backgroundColor?: Color;
+        /** The text color of the section header */
+        textColor?: Color;
+    }
+    interface MenuOptions extends WindowOptions {
+        /** A list of all the sections to display */
+        sections?: MenuSection[];
+        /** The background color of a menu item */
+        backgroundColor?: Color;
+        /** The text color of of a menu item */
+        textColor?: Color;
+
+        /** The background color of a selected menu item */
+        highlightBackgroundColor?: Color;
+        /** The text color of a selected menu item */
+        highlightTextColor?: Color;
+    }
+    interface MenuSelectionEvent {
+        /** The menu object */
+        menu: Menu;
+        /** The menu section object */
+        section: MenuSection;
+        /** The section index of the section of the selected item */
+        sectionIndex: number;
+        /** The menu item object */
+        item: MenuItem;
+        /** The item index of the selected item */
+        itemIndex: number;
+    }
+
+    /** A menu is a type of Window that displays a standard Pebble menu on the screen of Pebble.
+     * 
+     * Just like any window, you can initialize a Menu by passing an object to the constructor or by calling 
+     * accessors to change the properties. */
+    class Menu extends Window {
+        constructor(options: MenuOptions);
+
+        /** Returns the section at the given sectionIndex */
+        section(sectionIndex: number): void;
+        /** Define the section to be displayed at sectionIndex */
+        section(sectionIndex: number, section: MenuSection): void;
+
+        /** Returns the items in a specific section */
+        items(sectionIndex: number): MenuItem[];
+        /** Define the items to display in a specific section */
+        items(sectionIndex: number, items: MenuItem[]): void;
+
+        /** Returns menu item at specific section and at specific index */
+        item(sectionIndex: number, itemIndex: number): MenuItem;
+        /** Define the item to display at index `itemIndex` in section `sectionIndex` */
+        item(sectionIndex: number, itemIndex: number, item: MenuItem): void;
+
+        /** Get the currently selected item and section */
+        selection(callback: (event: MenuSelectionEvent) => void): void;
+
+        /** Change the selected item and section */
+        selection(sectionIndex: number, itemIndex: number): void;
+
+        /** Registers a callback called when an item in the menu is selected (or long selected) */
+        on(eventName: 'select' | 'longSelect', callback: (event: MenuSelectionEvent) => void): void;
+    }
+}
+
 /** The Settings module allows you to add a configurable web view to your application 
  *  and share options with it. Settings also provides two data accessors `Settings.option`
  *  and `Settings.data` which are backed by localStorage. Data stored in `Settings.option`
@@ -110,11 +419,11 @@ declare function require(modulePath: 'settings'): PebbleJsSettings;
 declare function require(modulePath: 'ajax'): PebbleJsAjax;
 
 /** A 2 dimensional vector. */
-declare function require(modulePath: 'vector2'): any
+declare function require(modulePath: 'vector2'): PebbleJsVector2;
 
 /** The UI framework contains all the classes needed to build the user interface of 
  * your Pebble applications and interact with the user. */
-declare function require(modulePath: 'ui'): any
+declare function require(modulePath: 'ui'): typeof PebbleJsUI;
 
 /** The Accel module allows you to get events from the accelerometer on Pebble. */
 declare function require(modulePath: 'ui/accel'): any

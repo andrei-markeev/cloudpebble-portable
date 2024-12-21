@@ -217,6 +217,11 @@ var IntellisenseHelper = (function () {
                     if (_this.overloads)
                         return;
                     var char = cm.coordsChar({left: savedX, top: savedY});
+                    var marks = cm.getDoc().findMarksAt(char);
+                    if (marks && marks.length > 0) {
+                        $('.tooltip').remove();
+                        return;
+                    }
                     var index = cm.indexFromPos(char) + 1;
                     var quickInfo = _this.typeScriptService.tsService.getQuickInfoAtPosition(filePath, index);
                     if (quickInfo) {
@@ -412,9 +417,9 @@ async function ActivateJsService(cm, filePath) {
                     text = errors[i].messageText;
                 else {
                     var chain = errors[i].messageText;
-                    var texts = [];
+                    var texts = [chain.messageText];
                     while (chain.next) {
-                        texts.push(chain.messageText);
+                        texts.push(chain.next.messageText);
                         chain = chain.next;
                     }
                     text = texts.join('\n  ');
