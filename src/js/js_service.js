@@ -5,6 +5,10 @@ var IntellisenseHelper = (function () {
         this.tooltipLastPos = { line: -1, ch: -1 };
         this.typeScriptService = typeScriptService;
         this.overloads = null;
+    }
+
+    IntellisenseHelper.prototype.setupEditor = function(filePath, editor) {
+        var _this = this;
         editor.on("cursorActivity", function (cm) {
             if (cm.getDoc().getCursor().line != _this.tooltipLastPos.line || cm.getDoc().getCursor().ch < _this.tooltipLastPos.ch) {
                 $('.tooltip').remove();
@@ -54,7 +58,6 @@ var IntellisenseHelper = (function () {
             "F12": function() {
                 var cur = editor.getCursor();
                 var index = editor.indexFromPos(cur);
-                var filePath = editor.file_path;
                 var definitions = _this.typeScriptService.tsService.getDefinitionAtPosition(filePath, index);
                 if (definitions && definitions.length > 0) {
                     if (definitions[0].fileName === filePath) {
@@ -78,6 +81,7 @@ var IntellisenseHelper = (function () {
             }
         });
     }
+
     IntellisenseHelper.prototype.joinParts = function (displayParts, enableMarkdown) {
         var html = '';
         if (displayParts) {
@@ -337,12 +341,29 @@ var TypeScriptServiceHost = (function () {
     TypeScriptServiceHost.prototype.getScriptFileNames = function () { return this.scripts; };
     TypeScriptServiceHost.prototype.getScriptVersion = function (fn) { return (this.scriptVersion[fn] || 0).toString(); };
     TypeScriptServiceHost.prototype.getScriptSnapshot = function (fn) {
+        var _this = this;
         if (fn == 'libs.d.ts')
             return ts.ScriptSnapshot.fromString(this.libText);
         else if (fn in this.text)
             return ts.ScriptSnapshot.fromString(this.text[fn]);
-        else
-            return undefined;
+        else {
+            var file_id = fn.replace(/[\/\.]/g, '-');
+            var file = CloudPebble.Editor.GetAllFiles()[file_id];
+            if (file) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', '/api/load-source-file.lua?file_path=' + encodeURIComponent(file.file_path), false);
+                xhr.send();
+                if (xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    _this.addFile(fn, response.source);
+                    return ts.ScriptSnapshot.fromString(this.text[fn]);
+                } else {
+                    console.error('Failed to load file ' + fn + ': server returned ' + xhr.status + ' ' + xhr.responseText);
+                    return undefined;
+                }
+            } else
+                return undefined;
+        }
     };
     TypeScriptServiceHost.prototype.getCurrentDirectory = function () { return ""; };
     TypeScriptServiceHost.prototype.getDefaultLibFileName = function () { return "libs.d.ts"; };
@@ -428,12 +449,15 @@ async function ActivateJsService(cm, filePath) {
         JsService.typeScriptService = new TypeScriptService(JsService.host, tsService);
         JsService.intellisenseHelper = new IntellisenseHelper(JsService.typeScriptService, cm);
         checkSyntax(cm);
-        cm.on("change", processChanges)
+        cm.on("change", processChanges);
+        JsService.intellisenseHelper.setupEditor(filePath, cm);
         JsService.intellisenseHelper.setupHoverTooltips(filePath, cm);
+        JsService.ready = true;
     } else {
         JsService.host.addFile(filePath, cm.getValue());
         checkSyntax(cm);
-        cm.on("change", processChanges)
+        cm.on("change", processChanges);
+        JsService.intellisenseHelper.setupEditor(filePath, cm);
         JsService.intellisenseHelper.setupHoverTooltips(filePath, cm);
     }
 

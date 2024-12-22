@@ -16,7 +16,7 @@ CloudPebble.Editor = (function() {
     };
 
     var file_with_name_and_target_exists = function(name, target) {
-        return CloudPebble.Editor.GetAllFiles().some(f => f.target === target && f.name === name);
+        return Object.values(CloudPebble.Editor.GetAllFiles()).some(f => f.target === target && f.name === name);
     };
 
     var run = function() {
