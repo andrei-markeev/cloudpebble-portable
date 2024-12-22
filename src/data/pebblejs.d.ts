@@ -108,7 +108,7 @@ interface PebbleJsVector2 {
 
 namespace PebbleJsUI {
 
-    type Color = 'black' | 'white' | 'clear';
+    type Color = 'black' | 'white' | 'clear' | string | number;
 
     interface ActionDef {
         /** An image to display in the action bar, next to the up button. */
@@ -383,6 +383,24 @@ namespace PebbleJsUI {
     class Menu extends Window {
         constructor(options: MenuOptions);
 
+        /** Get the background color of a menu item */
+        backgroundColor(): Color;
+        /** Set the background color of a menu item */
+        backgroundColor(value: Color): void;
+        /** Get the text color of of a menu item */
+        textColor(): Color;
+        /** Set the text color of of a menu item */
+        textColor(value: Color): void;
+
+        /** Get the background color of a selected menu item */
+        highlightBackgroundColor(): Color;
+        /** Set the background color of a selected menu item */
+        highlightBackgroundColor(value: Color): void;
+        /** Get the text color of a selected menu item */
+        highlightTextColor(): Color;
+        /** Set the text color of a selected menu item */
+        highlightTextColor(value: Color): void;
+
         /** Returns the section at the given sectionIndex */
         section(sectionIndex: number): void;
         /** Define the section to be displayed at sectionIndex */
@@ -449,3 +467,23 @@ declare function require(modulePath: 'timeline'): any
  * save data to be read on launch and configure your app to behave differently based on 
  * launch data. The Wakeup module, like the Settings module, is backed by localStorage. */
 declare function require(modulePath: 'wakeup'): any
+
+/** The Platform module allows you to determine the current platform runtime on the watch 
+ * through its Platform.version method. This is to be used when the Feature module does not 
+ * give enough ability to discern whether a feature exists or not.
+ */
+declare function require(modulePath: 'platform'): any
+
+/** The Feature module under Platform allows you to perform feature detection, adjusting aspects
+ * of your application to the capabilities of the current watch model it is current running on.
+ * This allows you to consider the functionality of your application based on the current set of 
+ * available capabilities or features. The Feature module also provides information about features
+ * that exist on all watch models such as Feature.resolution which returns the resolution of 
+ * the current watch model.
+ */
+declare function require(modulePath: 'platform/feature'): any
+
+/** The Clock module makes working with the Wakeup module simpler with its provided time utility
+ * functions.
+ */
+declare function require(modulePath: 'clock'): any

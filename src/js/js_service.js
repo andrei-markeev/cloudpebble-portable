@@ -50,6 +50,27 @@ var IntellisenseHelper = (function () {
 
                 $('.tooltip').remove();
                 _this.overloads = null;
+            },
+            "F12": function() {
+                var cur = editor.getCursor();
+                var index = editor.indexFromPos(cur);
+                var filePath = editor.file_path.replace(/\.js$/, '.ts');
+                var definitions = _this.typeScriptService.tsService.getDefinitionAtPosition(filePath, index);
+                if (definitions && definitions.length > 0) {
+                    if (definitions[0].fileName === filePath) {
+                        var definitionPos = editor.posFromIndex(definitions[0].textSpan.start);
+                        if (definitions[0].kind == 'function')
+                            definitionPos.ch += 9;
+
+                        editor.setCursor(definitionPos);
+
+                        if (cur.line < definitionPos.line) {
+                            editor.scrollIntoView({ line: Math.min(definitionPos.line + 20, editor.lineCount() - 1), ch: 0 });
+                        }
+                    } else {
+                        // TODO: jumping to other files
+                    }
+                }
             }
         });
     }
