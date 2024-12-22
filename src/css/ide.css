@@ -1429,6 +1429,10 @@ label .text-icon {
     overflow-x: hidden;
     scrollbar-width: thin;
 }
+.tooltip-docComment a {
+    color: #1571ce;
+    text-decoration: underline;
+}
 .overloads-label {
     float: left;
     width: 40px;

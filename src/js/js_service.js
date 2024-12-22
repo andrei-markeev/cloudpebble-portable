@@ -54,7 +54,7 @@ var IntellisenseHelper = (function () {
             "F12": function() {
                 var cur = editor.getCursor();
                 var index = editor.indexFromPos(cur);
-                var filePath = editor.file_path.replace(/\.js$/, '.ts');
+                var filePath = editor.file_path;
                 var definitions = _this.typeScriptService.tsService.getDefinitionAtPosition(filePath, index);
                 if (definitions && definitions.length > 0) {
                     if (definitions[0].fileName === filePath) {
@@ -71,14 +71,30 @@ var IntellisenseHelper = (function () {
                         // TODO: jumping to other files
                     }
                 }
+            },
+            "Ctrl-Space": function() {
+                var filePath = editor.file_path;
+                _this.showAutoCompleteDropDown(filePath, editor, editor.indexFromPos(editor.getCursor()) + 1);
             }
         });
     }
-    IntellisenseHelper.prototype.joinParts = function (displayParts) {
-        if (displayParts)
-            return displayParts.map(function (p) { return p.kind == "punctuation" || p.kind == "space" ? p.text : "<span class=\"" + p.kind + "\">" + p.text + "</span>"; }).join("").replace('\n', '<br/>');
-        else
-            return '';
+    IntellisenseHelper.prototype.joinParts = function (displayParts, enableMarkdown) {
+        var html = '';
+        if (displayParts) {
+            html = displayParts
+                .map(function (p) {
+                    if (p.kind === 'lineBreak')
+                        return '<br />';
+                    if (p.kind === "punctuation" || p.kind === "space")
+                        return p.text;
+                    return "<span class=\"" + p.kind + "\">" + p.text + "</span>";
+                }).join("");
+            // TODO: support more markdown syntax
+            if (enableMarkdown)
+                html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+                    .replace(/\[([^\]]+)\]\((https?:\/\/[A-Za-z0-9_\?\-\/\.]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+        }
+        return html;
     };
     IntellisenseHelper.prototype.showCodeMirrorHint = function (filePath, cm, list) {
         var _this = this;
@@ -123,7 +139,7 @@ var IntellisenseHelper = (function () {
                     if (!completion.typeInfo && completion.pos) {
                         var details = _this.typeScriptService.getCompletionDetails(filePath, completion.pos, completion.text);
                         completion.typeInfo = _this.joinParts(details.displayParts);
-                        completion.docComment = _this.joinParts(details.documentation);
+                        completion.docComment = _this.joinParts(details.documentation, true);
                     }
                     if (completion.typeInfo) {
                         $(element).tooltip({
@@ -156,6 +172,12 @@ var IntellisenseHelper = (function () {
         this.overloads = null;
         var list = [];
         for (var i = 0; i < completions.entries.length; i++) {
+            if (completions.entries[i].kind === "warning" && completions.entries[i].sortText === "1")
+                continue;
+            if (completions.entries[i].kind === "interface")
+                continue;
+            if (completions.entries[i].kind === "keyword")
+                continue;
             list.push({
                 text: completions.entries[i].name,
                 displayText: completions.entries[i].name,
@@ -180,7 +202,7 @@ var IntellisenseHelper = (function () {
                     .map(function (p) { return _this.joinParts(p.displayParts); })
                     .join(this.joinParts(signature.separatorDisplayParts));
                 overload.signatureString = this.joinParts(signature.prefixDisplayParts) + paramsString + this.joinParts(signature.suffixDisplayParts);
-                overload.documentation = this.joinParts(signature.documentation)
+                overload.documentation = this.joinParts(signature.documentation, true)
                 overloads.push(overload);
             }
 
@@ -249,7 +271,7 @@ var IntellisenseHelper = (function () {
                         $('.tooltip').remove();
 
                         var typeInfo = _this.joinParts(quickInfo.displayParts);
-                        var documentation = _this.joinParts(quickInfo.documentation);
+                        var documentation = _this.joinParts(quickInfo.documentation, true);
                         var domElement = cm.getWrapperElement();
                         $(domElement)
                             .tooltip({
@@ -311,14 +333,16 @@ var TypeScriptServiceHost = (function () {
         this.scripts = ['libs.d.ts', filePath];
     }
     TypeScriptServiceHost.prototype.log = function (message) { console.log("tsHost: " + message); };
-    TypeScriptServiceHost.prototype.getCompilationSettings = function () { return { target: ts.ScriptTarget.ES6, allowJs: true }; };
+    TypeScriptServiceHost.prototype.getCompilationSettings = function () { return { target: ts.ScriptTarget.ES6, allowJs: true, checkJs: true }; };
     TypeScriptServiceHost.prototype.getScriptFileNames = function () { return this.scripts; };
     TypeScriptServiceHost.prototype.getScriptVersion = function (fn) { return (this.scriptVersion[fn] || 0).toString(); };
     TypeScriptServiceHost.prototype.getScriptSnapshot = function (fn) {
         if (fn == 'libs.d.ts')
             return ts.ScriptSnapshot.fromString(this.libText);
-        else
+        else if (fn in this.text)
             return ts.ScriptSnapshot.fromString(this.text[fn]);
+        else
+            return undefined;
     };
     TypeScriptServiceHost.prototype.getCurrentDirectory = function () { return ""; };
     TypeScriptServiceHost.prototype.getDefaultLibFileName = function () { return "libs.d.ts"; };
@@ -392,8 +416,6 @@ function getFile(url) {
 }
 
 async function ActivateJsService(cm, filePath) {
-
-    filePath = filePath.replace(/\.js$/, '.ts')
 
     if (!JsService.ready) {
         var libText = await getFile('/data/libs.d.ts');
