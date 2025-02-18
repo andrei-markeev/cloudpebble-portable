@@ -75,12 +75,10 @@ local function startWindows(container_dir)
     if assert(unix.fork()) == 0 then
         Barf(status_filename, 'Unpacking Pebble SDK container bundle...');
 
-        local _, err = unix.execve(tar_path, {
-            tar_path,
-            'zxf',
-            path.join(container_dir, 'pebblesdk-container.tar.gz'),
-            '-C',
-            container_dir
+        local _, err = unix.execve(wsl_path, {
+            wsl_path,
+            '--',
+            'tar', 'zxf', '/mnt/c/' .. string.sub(path.join(container_dir, 'pebblesdk-container.tar.gz'), 4), '-C', '/mnt/c/' .. string.sub(container_dir, 4)
         })
 
         if err ~= nil then
